@@ -12,7 +12,7 @@ import SwiftData
 struct ASITApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Course.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,7 +25,7 @@ struct ASITApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView(modelContext: sharedModelContainer.mainContext)
         }
         .modelContainer(sharedModelContainer)
     }

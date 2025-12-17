@@ -1,0 +1,19 @@
+{
+  "id": "storaloral-birch",
+  "name": "Сталораль Берёза",
+  "therapyType": "slit",
+  "packages": [
+    {
+      "id": "bottle-10ml",
+      "name": "Флакон 10 мл",
+      "dosageType": "drop",
+      "unitLabel": "капля"
+    },
+    {
+      "id": "bottle-20ml",
+      "name": "Флакон 20 мл",
+      "dosageType": "drop",
+      "unitLabel": "капля"
+    }
+  ]
+}
