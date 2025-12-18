@@ -1,19 +1,61 @@
 {
-  "id": "storaloral-birch",
-  "name": "Сталораль Берёза",
-  "therapyType": "slit",
-  "packages": [
-    {
-      "id": "bottle-10ml",
-      "name": "Флакон 10 мл",
-      "dosageType": "drop",
-      "unitLabel": "капля"
+    "id": "staloral-birch",
+    "name": {
+        "ru": "Сталораль Аллерген пыльцы берёзы"
     },
-    {
-      "id": "bottle-20ml",
-      "name": "Флакон 20 мл",
-      "dosageType": "drop",
-      "unitLabel": "капля"
-    }
-  ]
+    "therapyType": "slit",
+    "packages": [
+        {
+            "id": "bottle-10-ir",
+            "name": {
+                "ru": "Флакон с синей крышкой"
+            },
+            "dosages": [
+                {
+                    "type": "press",
+                    "amount": 1
+                },
+                {
+                    "type": "press",
+                    "amount": 2
+                },
+                {
+                    "type": "press",
+                    "amount": 3
+                },
+                {
+                    "type": "press",
+                    "amount": 4
+                }
+            ]
+        },
+        {
+            "id": "bottle-300-ir",
+            "name": {
+                "ru": "Флакон с фиолетовой крышкой"
+            },
+            "dosages": [
+                {
+                    "type": "press",
+                    "amount": 1
+                },
+                {
+                    "type": "press",
+                    "amount": 2
+                },
+                {
+                    "type": "press",
+                    "amount": 3
+                },
+                {
+                    "type": "press",
+                    "amount": 4
+                },
+                {
+                    "type": "press",
+                    "amount": 5
+                }
+            ]
+        }
+    ]
 }

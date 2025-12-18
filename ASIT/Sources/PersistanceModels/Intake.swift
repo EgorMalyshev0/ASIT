@@ -16,36 +16,22 @@ final class Intake {
     var medicationId: String
     /// ID упаковки
     var packageId: String
-    /// Тип дозировки (капля / таблетка / нажатие)
-    var dosageType: DosageType
-    /// Количество (1, 2, 3 ...)
-    var amount: Int
+    /// Дозировка
+    var dosage: Dosage
     var comment: String?
 
     init(
         date: Date,
         medicationId: String,
         packageId: String,
-        dosageType: DosageType,
-        amount: Int,
+        dosage: Dosage,
         comment: String?
     ) {
         self.id = UUID()
         self.date = date
         self.medicationId = medicationId
         self.packageId = packageId
-        self.dosageType = dosageType
-        self.amount = amount
+        self.dosage = dosage
         self.comment = comment
     }
-}
-
-enum TherapyType: String, Codable {
-    case scit
-    case slit
-}
-
-enum DosageType: String, Codable {
-    case press
-    case tablet
 }

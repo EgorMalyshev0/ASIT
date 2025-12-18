@@ -13,6 +13,7 @@ final class Course {
     @Attribute(.unique) var id: UUID
     /// ID препарата из JSON-каталога
     var medicationId: String
+    var takingYear: MedicationTakingYear
     var startDate: Date
     var endDate: Date?
     var isCompleted: Bool
@@ -23,6 +24,7 @@ final class Course {
 
     init(
         medicationId: String,
+        takingYear: MedicationTakingYear,
         startDate: Date,
         endDate: Date? = nil,
         isCompleted: Bool = false,
@@ -31,6 +33,7 @@ final class Course {
     ) {
         self.id = UUID()
         self.medicationId = medicationId
+        self.takingYear = takingYear
         self.startDate = startDate
         self.endDate = endDate
         self.isCompleted = isCompleted
