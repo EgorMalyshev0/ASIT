@@ -1,61 +1,124 @@
-{
-    "id": "staloral-birch",
-    "name": {
-        "ru": "Сталораль Аллерген пыльцы берёзы"
-    },
-    "therapyType": "slit",
-    "packages": [
-        {
-            "id": "bottle-10-ir",
-            "name": {
-                "ru": "Флакон с синей крышкой"
-            },
-            "dosages": [
-                {
-                    "type": "press",
-                    "amount": 1
-                },
-                {
-                    "type": "press",
-                    "amount": 2
-                },
-                {
-                    "type": "press",
-                    "amount": 3
-                },
-                {
-                    "type": "press",
-                    "amount": 4
-                }
-            ]
+[
+    {
+        "id": "staloral_birch_pollen",
+        "name": {
+            "ru": "Сталораль Аллерген пыльцы берёзы"
         },
-        {
-            "id": "bottle-300-ir",
-            "name": {
-                "ru": "Флакон с фиолетовой крышкой"
+        "therapyType": "slit",
+        "packages": [
+            {
+                "id": "bottle-10-ir",
+                "name": {
+                    "ru": "Флакон с синей крышкой"
+                },
+                "dosages": [
+                    {
+                        "type": "press",
+                        "amount": 1
+                    },
+                    {
+                        "type": "press",
+                        "amount": 2
+                    },
+                    {
+                        "type": "press",
+                        "amount": 3
+                    },
+                    {
+                        "type": "press",
+                        "amount": 4
+                    }
+                ]
             },
-            "dosages": [
-                {
-                    "type": "press",
-                    "amount": 1
+            {
+                "id": "bottle-300-ir",
+                "name": {
+                    "ru": "Флакон с фиолетовой крышкой"
                 },
-                {
-                    "type": "press",
-                    "amount": 2
+                "dosages": [
+                    {
+                        "type": "press",
+                        "amount": 1
+                    },
+                    {
+                        "type": "press",
+                        "amount": 2
+                    },
+                    {
+                        "type": "press",
+                        "amount": 3
+                    },
+                    {
+                        "type": "press",
+                        "amount": 4
+                    },
+                    {
+                        "type": "press",
+                        "amount": 5
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "staloral_mites",
+        "name": {
+            "ru": "Сталораль Аллерген клещей"
+        },
+        "therapyType": "slit",
+        "packages": [
+            {
+                "id": "bottle-10-ir",
+                "name": {
+                    "ru": "Флакон с синей крышкой"
                 },
-                {
-                    "type": "press",
-                    "amount": 3
+                "dosages": [
+                    {
+                        "type": "press",
+                        "amount": 1
+                    },
+                    {
+                        "type": "press",
+                        "amount": 2
+                    },
+                    {
+                        "type": "press",
+                        "amount": 3
+                    },
+                    {
+                        "type": "press",
+                        "amount": 4
+                    }
+                ]
+            },
+            {
+                "id": "bottle-300-ir",
+                "name": {
+                    "ru": "Флакон с фиолетовой крышкой"
                 },
-                {
-                    "type": "press",
-                    "amount": 4
-                },
-                {
-                    "type": "press",
-                    "amount": 5
-                }
-            ]
-        }
-    ]
-}
+                "dosages": [
+                    {
+                        "type": "press",
+                        "amount": 1
+                    },
+                    {
+                        "type": "press",
+                        "amount": 2
+                    },
+                    {
+                        "type": "press",
+                        "amount": 3
+                    },
+                    {
+                        "type": "press",
+                        "amount": 4
+                    },
+                    {
+                        "type": "press",
+                        "amount": 5
+                    }
+                ]
+            }
+        ]
+    }
+]

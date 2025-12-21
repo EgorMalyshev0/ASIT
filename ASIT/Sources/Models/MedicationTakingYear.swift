@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum MedicationTakingYear: Int, Codable {
+enum MedicationTakingYear: Int, Codable, CaseIterable {
     case first
     case second
     case third

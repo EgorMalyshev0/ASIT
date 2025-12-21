@@ -15,7 +15,7 @@ final class Course {
     var medicationId: String
     var takingYear: MedicationTakingYear
     var startDate: Date
-    var endDate: Date?
+    var endDate: Date
     var isCompleted: Bool
     var isPaused: Bool
 
@@ -26,7 +26,7 @@ final class Course {
         medicationId: String,
         takingYear: MedicationTakingYear,
         startDate: Date,
-        endDate: Date? = nil,
+        endDate: Date,
         isCompleted: Bool = false,
         isPaused: Bool = false,
         intakes: [Intake] = []

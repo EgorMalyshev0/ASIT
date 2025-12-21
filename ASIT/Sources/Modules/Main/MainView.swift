@@ -20,7 +20,7 @@ struct MainView: View {
     var body: some View {
         content
             .sheet(isPresented: $isCourseAddingPresented) {
-                AddCourseView()
+                AddCourseView(modelContext: viewModel.modelContext)
             }
     }
 }
