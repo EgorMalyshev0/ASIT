@@ -41,3 +41,10 @@ final class Course {
         self.intakes = []
     }
 }
+
+extension Course {
+    static let mock: Course = Course(medicationId: "staloral_birch_pollen",
+                                     takingYear: .second,
+                                     startDate: .now,
+                                     endDate: .now.addingTimeInterval(1000))
+}

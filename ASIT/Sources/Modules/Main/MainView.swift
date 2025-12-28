@@ -34,33 +34,17 @@ private extension MainView {
                 isCourseAddingPresented = true
             }
         } else {
-            Text("Курсы есть, количество: \(courses.count)")
-        }
-    }
-}
-
-struct MainEmptyView: View {
-    let onTap: () -> Void
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Text("У вас нет ни одного курса")
-                .font(.title)
-                .foregroundStyle(.primary)
-
-            if #available(iOS 26.0, *) {
-                addButton
-                    .buttonStyle(.glassProminent)
-            } else {
-                addButton
-                    .buttonStyle(.borderedProminent)
+            VStack {
+                ForEach(courses) {
+                    CourseCardView(course: $0, onSelect: {
+                        print("Selected course: \($0)")
+                    }, onIntake: {
+                        print("Intaked course: \($0)")
+                    })
+                }
             }
+            .padding()
         }
-        .padding()
-    }
-
-    private var addButton: some View {
-        Button("Добавить", action: onTap)
     }
 }
 
