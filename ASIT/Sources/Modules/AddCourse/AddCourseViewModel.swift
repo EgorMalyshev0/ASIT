@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftData
 
 @Observable
 final class AddCourseViewModel {
@@ -21,10 +20,10 @@ final class AddCourseViewModel {
         selectedMedicationId != nil && selectedYear != nil
     }
 
-    private let modelContext: ModelContext
+    private let courseService: CourseManagementServiceProtocol
 
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    init(courseService: CourseManagementServiceProtocol) {
+        self.courseService = courseService
         startDate = .now
         endDate = .now.addingTimeInterval(60 * 60 * 24 * 180)
         fetchMedications()
@@ -33,7 +32,7 @@ final class AddCourseViewModel {
     func addCourse() {
         guard let selectedMedicationId,
               let selectedYear,
-              let takingYear = MedicationTakingYear(rawValue: selectedYear)  else {
+              let takingYear = MedicationTakingYear(rawValue: selectedYear) else {
             return
         }
 
@@ -47,7 +46,7 @@ final class AddCourseViewModel {
             intakes: []
         )
 
-        modelContext.insert(course)
+        courseService.addCourse(course)
     }
 
     private func fetchMedications() {

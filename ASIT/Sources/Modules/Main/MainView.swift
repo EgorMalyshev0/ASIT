@@ -5,23 +5,16 @@
 //  Created by Egor Malyshev on 17.12.2025.
 //
 
-import SwiftData
 import SwiftUI
 
 struct MainView: View {
-    @Query var courses: [Course]
-    @Environment(\.modelContext) var modelContext
-    @State private var viewModel: MainViewModel
+    @EnvironmentObject private var courseService: CourseManagementService
     @State private var isCourseAddingPresented: Bool = false
-
-    init() {
-        _viewModel = State(initialValue: MainViewModel())
-    }
 
     var body: some View {
         content
             .sheet(isPresented: $isCourseAddingPresented) {
-                AddCourseView(modelContext: modelContext)
+                AddCourseView(courseService: courseService)
             }
     }
 }
@@ -29,13 +22,13 @@ struct MainView: View {
 private extension MainView {
     @ViewBuilder
     var content: some View {
-        if courses.isEmpty {
+        if courseService.courses.isEmpty {
             MainEmptyView {
                 isCourseAddingPresented = true
             }
         } else {
             VStack {
-                ForEach(courses) {
+                ForEach(courseService.courses) {
                     CourseCardView(course: $0, onSelect: {
                         print("Selected course: \($0)")
                     }, onIntake: {
@@ -49,9 +42,6 @@ private extension MainView {
 }
 
 #Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: Course.self, configurations: config)
-
     MainView()
-        .modelContext(container.mainContext)
+        .environmentObject(CourseManagementService())
 }
