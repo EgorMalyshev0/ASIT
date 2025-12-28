@@ -41,6 +41,10 @@ struct CourseCardView: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(.systemGray6))
         )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onSelect(course)
+        }
     }
 }
 
