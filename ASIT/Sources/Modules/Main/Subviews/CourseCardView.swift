@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct CourseCardView: View {
+    @EnvironmentObject var localizationService: LocalizationService
     let course: Course
     let onSelect: (Course) -> Void
     let onIntake: (Course) -> Void

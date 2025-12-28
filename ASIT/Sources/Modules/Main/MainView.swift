@@ -53,4 +53,5 @@ private extension MainView {
         let container = try! ModelContainer(for: Course.self, configurations: config)
 
     MainView()
+        .modelContext(container.mainContext)
 }

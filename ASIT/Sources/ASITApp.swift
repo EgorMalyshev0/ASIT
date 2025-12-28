@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct ASITApp: App {
+    @StateObject var localizationService = LocalizationService()
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Course.self,
@@ -28,5 +30,6 @@ struct ASITApp: App {
             MainView()
         }
         .modelContainer(sharedModelContainer)
+        .environmentObject(localizationService)
     }
 }
