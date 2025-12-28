@@ -25,7 +25,7 @@ struct ASITApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainView(modelContext: sharedModelContainer.mainContext)
+            MainView()
         }
         .modelContainer(sharedModelContainer)
     }

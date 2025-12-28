@@ -9,18 +9,19 @@ import SwiftData
 import SwiftUI
 
 struct MainView: View {
-    @State private var viewModel: ViewModel
+    @Query var courses: [Course]
+    @Environment(\.modelContext) var modelContext
+    @State private var viewModel: MainViewModel
     @State private var isCourseAddingPresented: Bool = false
 
-    init(modelContext: ModelContext) {
-        let viewModel = ViewModel(modelContext: modelContext)
-        _viewModel = State(initialValue: viewModel)
+    init() {
+        _viewModel = State(initialValue: MainViewModel())
     }
 
     var body: some View {
         content
             .sheet(isPresented: $isCourseAddingPresented) {
-                AddCourseView(modelContext: viewModel.modelContext)
+                AddCourseView(modelContext: modelContext)
             }
     }
 }
@@ -28,12 +29,12 @@ struct MainView: View {
 private extension MainView {
     @ViewBuilder
     var content: some View {
-        if viewModel.courses.isEmpty {
+        if courses.isEmpty {
             MainEmptyView {
                 isCourseAddingPresented = true
             }
         } else {
-            EmptyView()
+            Text("Курсы есть, количество: \(courses.count)")
         }
     }
 }
@@ -67,5 +68,5 @@ struct MainEmptyView: View {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: Course.self, configurations: config)
 
-    MainView(modelContext: container.mainContext)
+    MainView()
 }
