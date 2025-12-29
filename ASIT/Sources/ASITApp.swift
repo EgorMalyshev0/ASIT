@@ -15,7 +15,7 @@ struct ASITApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainView()
+            AppView()
         }
         .environmentObject(localizationService)
         .environmentObject(courseService)

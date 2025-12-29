@@ -106,6 +106,12 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
         $courses.eraseToAnyPublisher()
     }
     
+    init(withMockData: Bool = false) {
+        if withMockData {
+            courses = Self.mockCourses
+        }
+    }
+    
     func addCourse(_ course: Course) {
         courses.append(course)
     }
@@ -128,6 +134,35 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
         if let index = course.intakes.firstIndex(where: { $0.id == intake.id }) {
             course.intakes.remove(at: index)
         }
+    }
+    
+    static var mockCourses: [Course] {
+        // Курс с приёмами (будет показывать "Подтвердить приём")
+        let courseWithIntakes = Course(
+            medicationId: "staloral_birch_pollen",
+            takingYear: .first,
+            startDate: Calendar.current.date(byAdding: .day, value: -10, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 60, to: Date())!
+        )
+        // Добавляем приём вчера
+        let yesterdayIntake = Intake(
+            date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
+            medicationId: "staloral_birch_pollen",
+            packageId: "bottle-10-ir",
+            dosage: Dosage(type: .press, amount: 3),
+            comment: nil
+        )
+        courseWithIntakes.intakes.append(yesterdayIntake)
+        
+        // Курс без приёмов (будет показывать "Добавить приём")
+        let courseWithoutIntakes = Course(
+            medicationId: "staloral_mites",
+            takingYear: .second,
+            startDate: Calendar.current.date(byAdding: .day, value: -5, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 90, to: Date())!
+        )
+        
+        return [courseWithIntakes, courseWithoutIntakes]
     }
 }
 

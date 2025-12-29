@@ -2,53 +2,94 @@
 //  MainView.swift
 //  ASIT
 //
-//  Created by Egor Malyshev on 17.12.2025.
+//  Created by Egor Malyshev on 29.12.2025.
 //
 
 import SwiftUI
 
 struct MainView: View {
-    @EnvironmentObject private var courseService: CourseManagementService
-    @State private var isCourseAddingPresented: Bool = false
-    @State private var isCourseSettingsPresented: Bool = false
+    @State private var viewModel: MainViewModel
+    @State private var selectedCourse: Course?
+    @State private var isIntakeAddingPresented = false
+    @State private var courseForIntake: Course?
+    
+    private let courseService: CourseManagementServiceProtocol
+
+    init(courseService: CourseManagementServiceProtocol) {
+        self.courseService = courseService
+        _viewModel = State(initialValue: MainViewModel(courseService: courseService))
+    }
 
     var body: some View {
-        content
-            .sheet(isPresented: $isCourseAddingPresented) {
-                AddCourseView(courseService: courseService)
+        NavigationStack {
+            mainContent
+                .background(Color(.systemGroupedBackground))
+                .navigationTitle(viewModel.selectedDate.formatted())
+                .navigationBarTitleDisplayMode(.inline)
+        }
+        .sheet(isPresented: $isIntakeAddingPresented) {
+            if let course = courseForIntake {
+                IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService)
             }
+        }
     }
-}
-
-private extension MainView {
-    @ViewBuilder
-    var content: some View {
-        if courseService.courses.isEmpty {
-            MainEmptyView {
-                isCourseAddingPresented = true
-            }
-        } else {
-            NavigationStack {
-                VStack {
-                    ForEach(courseService.courses) { course in
-                        CourseCardView(course: course, onSelect: {
-                            isCourseSettingsPresented = true
-                            print("Selected course: \($0)")
-                        }, onIntake: {
-                            print("Intaked course: \($0)")
-                        })
-                        .navigationDestination(isPresented: $isCourseSettingsPresented) {
-                            CourseSettingsView(course: course, courseService: courseService)
+    
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            WeekCalendarView(
+                selectedDate: $viewModel.selectedDate,
+                weekOffset: $viewModel.weekOffset
+            )
+            
+            ScrollView {
+                if viewModel.activeCoursesForSelectedDate.isEmpty {
+                    emptyStateView
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(viewModel.activeCoursesForSelectedDate) { course in
+                            IntakeCardView(
+                                course: course,
+                                selectedDate: viewModel.selectedDate,
+                                medication: viewModel.medication(for: course),
+                                onSelect: { course in
+                                    selectedCourse = course
+                                },
+                                onAddIntake: { course in
+                                    courseForIntake = course
+                                    isIntakeAddingPresented = true
+                                },
+                                onConfirmIntake: { course in
+                                    viewModel.confirmIntake(for: course)
+                                }
+                            )
                         }
                     }
                 }
-                .padding()
             }
+            .padding()
         }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "pills.circle")
+                .font(.system(size: 56))
+                .foregroundStyle(.secondary)
+            
+            Text("Нет активных курсов")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            
+            Text("На эту дату нет запланированных приёмов лекарств")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, 40)
+        .padding(.horizontal)
     }
 }
 
 #Preview {
-    MainView()
-        .environmentObject(CourseManagementService())
+    MainView(courseService: MockCourseManagementService(withMockData: true))
 }
