@@ -72,6 +72,20 @@ final class MainViewModel {
         weekOffset = 0
     }
     
+    /// Обновляет weekOffset чтобы выбранная дата была в отображаемой неделе
+    func updateWeekOffset() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        guard let currentWeekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) else {
+            return
+        }
+        
+        let selectedDay = calendar.startOfDay(for: selectedDate)
+        let daysDiff = calendar.dateComponents([.day], from: currentWeekStart, to: selectedDay).day ?? 0
+        weekOffset = daysDiff / 7
+    }
+    
     var isToday: Bool {
         Calendar.current.isDateInToday(selectedDate)
     }

@@ -10,6 +10,7 @@ import SwiftUI
 struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var courseForIntake: Course?
+    @State private var isCalendarPresented = false
     
     private let courseService: CourseManagementServiceProtocol
 
@@ -33,10 +34,26 @@ struct MainView: View {
                         }
                         .disabled(viewModel.isToday)
                     }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isCalendarPresented = true
+                        } label: {
+                            Image(systemName: "calendar")
+                        }
+                    }
                 }
         }
         .sheet(item: $courseForIntake) { course in
             IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService)
+        }
+        .sheet(isPresented: $isCalendarPresented) {
+            FullCalendarView(
+                selectedDate: $viewModel.selectedDate,
+                courses: viewModel.courses
+            )
+        }
+        .onChange(of: viewModel.selectedDate) { _, _ in
+            viewModel.updateWeekOffset()
         }
     }
     
