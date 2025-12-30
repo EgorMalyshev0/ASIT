@@ -20,7 +20,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     private let modelContext: ModelContext
     
     init() {
-        let schema = Schema([Course.self, Intake.self])
+        let schema = Schema([Course.self, Intake.self, Reminder.self])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         
         do {
@@ -85,6 +85,23 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
     }
     
+    // MARK: - Reminder CRUD
+    
+    func addReminder(_ reminder: Reminder, to course: Course) {
+        course.reminders.append(reminder)
+        save()
+        fetchCourses()
+    }
+    
+    func deleteReminder(_ reminder: Reminder, from course: Course) {
+        if let index = course.reminders.firstIndex(where: { $0.id == reminder.id }) {
+            course.reminders.remove(at: index)
+        }
+        modelContext.delete(reminder)
+        save()
+        fetchCourses()
+    }
+    
     // MARK: - Private
     
     private func save() {
@@ -133,6 +150,16 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     func deleteIntake(_ intake: Intake, from course: Course) {
         if let index = course.intakes.firstIndex(where: { $0.id == intake.id }) {
             course.intakes.remove(at: index)
+        }
+    }
+    
+    func addReminder(_ reminder: Reminder, to course: Course) {
+        course.reminders.append(reminder)
+    }
+    
+    func deleteReminder(_ reminder: Reminder, from course: Course) {
+        if let index = course.reminders.firstIndex(where: { $0.id == reminder.id }) {
+            course.reminders.remove(at: index)
         }
     }
     

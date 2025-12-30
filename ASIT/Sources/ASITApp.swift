@@ -10,12 +10,18 @@ import SwiftData
 
 @main
 struct ASITApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var localizationService = LocalizationService()
     @StateObject private var courseService = CourseManagementService()
 
     var body: some Scene {
         WindowGroup {
             AppView()
+                .task {
+                    appDelegate.courseService = courseService
+                    await NotificationService.shared.requestAuthorization()
+                    await NotificationService.shared.syncNotifications(with: courseService.courses)
+                }
         }
         .environmentObject(localizationService)
         .environmentObject(courseService)

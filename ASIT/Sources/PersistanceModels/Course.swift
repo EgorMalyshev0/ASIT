@@ -21,6 +21,9 @@ final class Course {
 
     @Relationship(deleteRule: .cascade)
     var intakes: [Intake]
+    
+    @Relationship(deleteRule: .cascade)
+    var reminders: [Reminder]
 
     init(
         medicationId: String,
@@ -29,7 +32,8 @@ final class Course {
         endDate: Date,
         isCompleted: Bool = false,
         isPaused: Bool = false,
-        intakes: [Intake] = []
+        intakes: [Intake] = [],
+        reminders: [Reminder] = []
     ) {
         self.id = UUID()
         self.medicationId = medicationId
@@ -39,6 +43,7 @@ final class Course {
         self.isCompleted = isCompleted
         self.isPaused = isPaused
         self.intakes = []
+        self.reminders = []
     }
     
     /// Проверяет, есть ли подтверждённый приём на указанную дату

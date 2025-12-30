@@ -22,4 +22,8 @@ protocol CourseManagementServiceProtocol: AnyObject {
     func addIntake(_ intake: Intake, to course: Course)
     func updateIntake(_ intake: Intake)
     func deleteIntake(_ intake: Intake, from course: Course)
+    
+    // MARK: - Reminder CRUD
+    func addReminder(_ reminder: Reminder, to course: Course)
+    func deleteReminder(_ reminder: Reminder, from course: Course)
 }
