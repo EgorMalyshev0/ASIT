@@ -7,38 +7,32 @@
 
 import SwiftUI
 
-/// Горизонтальный календарь недели с возможностью прокрутки по 7 дней
+/// Горизонтальный календарь недели с paging скроллом
 struct WeekCalendarView: View {
     @Binding var selectedDate: Date
     @Binding var weekOffset: Int
+    @State private var currentPage: Int = 1
+    @State private var isAnimating: Bool = false
 
     private let calendar = Calendar.current
     
-    private var weekDates: [Date] {
+    /// Индекс текущего выбранного дня в неделе (0 = понедельник, 6 = воскресенье)
+    private var selectedDayIndex: Int {
+        let weekday = calendar.component(.weekday, from: selectedDate)
+        return (weekday + 5) % 7
+    }
+    
+    /// Генерирует даты для недели с указанным offset
+    private func weekDates(for offset: Int) -> [Date] {
         let today = calendar.startOfDay(for: Date())
         guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)),
-              let offsetWeekStart = calendar.date(byAdding: .day, value: weekOffset * 7, to: weekStart) else {
+              let offsetWeekStart = calendar.date(byAdding: .day, value: (weekOffset + offset) * 7, to: weekStart) else {
             return []
         }
         
         return (0..<7).compactMap { dayOffset in
             calendar.date(byAdding: .day, value: dayOffset, to: offsetWeekStart)
         }
-    }
-    
-    private var monthYearTitle: String {
-        guard let firstDate = weekDates.first else { return "" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "LLLL yyyy"
-        return formatter.string(from: firstDate).capitalized
-    }
-    
-    /// Индекс текущего выбранного дня в неделе (0 = понедельник, 6 = воскресенье)
-    private var selectedDayIndex: Int {
-        let weekday = calendar.component(.weekday, from: selectedDate)
-        // Конвертируем: 1 (вс) -> 6, 2 (пн) -> 0, 3 (вт) -> 1, ...
-        return (weekday + 5) % 7
     }
     
     /// Выбирает день с тем же индексом в новой неделе
@@ -53,47 +47,82 @@ struct WeekCalendarView: View {
     }
     
     var body: some View {
-        VStack(spacing: 12) {            
-            // Дни недели
-            HStack(spacing: 0) {
-                ForEach(weekDates, id: \.self) { date in
-                    DayCell(
-                        date: date,
-                        isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                        isToday: calendar.isDateInToday(date)
-                    )
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            selectedDate = date
-                        }
+        TabView(selection: $currentPage) {
+            WeekRow(
+                dates: weekDates(for: -1),
+                selectedDate: $selectedDate,
+                calendar: calendar
+            )
+            .tag(0)
+            
+            WeekRow(
+                dates: weekDates(for: 0),
+                selectedDate: $selectedDate,
+                calendar: calendar
+            )
+            .tag(1)
+            
+            WeekRow(
+                dates: weekDates(for: 1),
+                selectedDate: $selectedDate,
+                calendar: calendar
+            )
+            .tag(2)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 76)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
+        .onChange(of: currentPage) { oldValue, newValue in
+            handlePageChange(from: oldValue, to: newValue)
+        }
+    }
+    
+    private func handlePageChange(from oldValue: Int, to newValue: Int) {
+        guard newValue != 1, !isAnimating else { return }
+        
+        isAnimating = true
+        let direction = newValue == 0 ? -1 : 1
+        
+        // Ждём окончания анимации свайпа, потом меняем данные и перецентрируем
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            weekOffset += direction
+            selectSameDayInNewWeek()
+            currentPage = 1
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isAnimating = false
+            }
+        }
+    }
+}
+
+// MARK: - WeekRow
+
+private struct WeekRow: View {
+    let dates: [Date]
+    @Binding var selectedDate: Date
+    let calendar: Calendar
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(dates, id: \.self) { date in
+                DayCell(
+                    date: date,
+                    isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                    isToday: calendar.isDateInToday(date)
+                )
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        selectedDate = date
                     }
                 }
             }
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemGray6))
-        )
-        .gesture(
-            DragGesture(minimumDistance: 50)
-                .onEnded { value in
-                    if value.translation.width < 0 {
-                        // Свайп влево - следующая неделя
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            weekOffset += 1
-                            selectSameDayInNewWeek()
-                        }
-                    } else if value.translation.width > 0 {
-                        // Свайп вправо - предыдущая неделя
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            weekOffset -= 1
-                            selectSameDayInNewWeek()
-                        }
-                    }
-                }
-        )
     }
 }
 
@@ -103,8 +132,6 @@ private struct DayCell: View {
     let date: Date
     let isSelected: Bool
     let isToday: Bool
-    
-    private let calendar = Calendar.current
     
     private var dayNumber: String {
         let formatter = DateFormatter()
@@ -150,4 +177,3 @@ private struct DayCell: View {
     )
     .padding()
 }
-
