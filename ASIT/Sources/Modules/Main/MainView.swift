@@ -12,6 +12,7 @@ struct MainView: View {
     @State private var courseForIntake: Course?
     @State private var isCalendarPresented = false
     @State private var isAddCoursePresented = false
+    @State private var isSettingsPresented = false
     
     private let courseService: CourseManagementServiceProtocol
 
@@ -49,6 +50,13 @@ struct MainView: View {
                             Image(systemName: "plus")
                         }
                     }
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            isSettingsPresented = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                    }
                 }
         }
         .sheet(item: $courseForIntake) { course in
@@ -64,6 +72,9 @@ struct MainView: View {
         }
         .sheet(isPresented: $isAddCoursePresented) {
             AddCourseView(courseService: courseService)
+        }
+        .sheet(isPresented: $isSettingsPresented) {
+            SettingsView(courseService: courseService)
         }
     }
     
