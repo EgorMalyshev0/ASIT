@@ -118,9 +118,7 @@ struct WeekCalendarView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 56)
-//            .padding(.bottom, 8)
         }
-//        .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemGray6))

@@ -43,10 +43,6 @@ struct IntakeCardView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 12, height: 12)
-            
             VStack(alignment: .leading, spacing: 4) {
                 Text(medication?.name.ru ?? "Препарат")
                     .font(.headline)
@@ -81,10 +77,6 @@ struct IntakeCardView: View {
                 .fill(isIntakeDone ? Color(.systemGray6) : Color(.systemBackground))
                 .shadow(color: .primary.opacity(0.1), radius: 8, x: 0, y: 2)
         )
-//        .overlay(
-//            RoundedRectangle(cornerRadius: 16)
-//                .stroke(borderColor, lineWidth: 1)
-//        )
         .contentShape(Rectangle())
         .onTapGesture {
             onTap()
@@ -109,7 +101,7 @@ struct IntakeCardView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(.green)
+            .tint(.blue)
         } else {
             // Нет приёмов - только статус
             HStack {
