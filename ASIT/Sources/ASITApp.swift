@@ -19,7 +19,7 @@ struct ASITApp: App {
             AppView()
                 .task {
                     appDelegate.courseService = courseService
-                    await NotificationService.shared.requestAuthorization()
+                    _ = await NotificationService.shared.requestAuthorization()
                     await NotificationService.shared.syncNotifications(with: courseService.courses)
                 }
         }
