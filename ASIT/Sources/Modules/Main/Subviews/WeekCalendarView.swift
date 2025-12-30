@@ -11,10 +11,21 @@ import SwiftUI
 struct WeekCalendarView: View {
     @Binding var selectedDate: Date
     @Binding var weekOffset: Int
+    let courses: [Course]
+    
     @State private var currentPage: Int = 1
     @State private var isAnimating: Bool = false
 
     private let calendar = Calendar.current
+    private let weekdaySymbols = Calendar.current.shortWeekdaySymbols
+    
+    /// Переупорядоченные символы дней недели (начиная с понедельника)
+    private var reorderedWeekdays: [String] {
+        var symbols = weekdaySymbols
+        let sunday = symbols.removeFirst()
+        symbols.append(sunday)
+        return symbols
+    }
     
     /// Индекс текущего выбранного дня в неделе (0 = понедельник, 6 = воскресенье)
     private var selectedDayIndex: Int {
@@ -46,31 +57,70 @@ struct WeekCalendarView: View {
         selectedDate = newDate
     }
     
-    var body: some View {
-        TabView(selection: $currentPage) {
-            WeekRow(
-                dates: weekDates(for: -1),
-                selectedDate: $selectedDate,
-                calendar: calendar
-            )
-            .tag(0)
+    /// Проверяет все ли активные курсы на дату имеют приёмы
+    private func allCoursesHaveIntake(on date: Date) -> Bool {
+        let activeCourses = courses.filter { course in
+            let startOfDate = calendar.startOfDay(for: date)
+            let startOfCourseStart = calendar.startOfDay(for: course.startDate)
+            let startOfCourseEnd = calendar.startOfDay(for: course.endDate)
             
-            WeekRow(
-                dates: weekDates(for: 0),
-                selectedDate: $selectedDate,
-                calendar: calendar
-            )
-            .tag(1)
-            
-            WeekRow(
-                dates: weekDates(for: 1),
-                selectedDate: $selectedDate,
-                calendar: calendar
-            )
-            .tag(2)
+            return startOfDate >= startOfCourseStart &&
+                   startOfDate <= startOfCourseEnd &&
+                   !course.isCompleted &&
+                   !course.isPaused
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 76)
+        
+        guard !activeCourses.isEmpty else { return false }
+        return activeCourses.allSatisfy { $0.hasIntake(on: date) }
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Фиксированная строка с днями недели
+            HStack(spacing: 0) {
+                ForEach(reorderedWeekdays, id: \.self) { symbol in
+                    Text(symbol.uppercased())
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+            
+            // Скроллящиеся числа
+            TabView(selection: $currentPage) {
+                WeekRow(
+                    dates: weekDates(for: -1),
+                    selectedDate: $selectedDate,
+                    calendar: calendar,
+                    allCoursesHaveIntake: allCoursesHaveIntake
+                )
+                .tag(0)
+                
+                WeekRow(
+                    dates: weekDates(for: 0),
+                    selectedDate: $selectedDate,
+                    calendar: calendar,
+                    allCoursesHaveIntake: allCoursesHaveIntake
+                )
+                .tag(1)
+                
+                WeekRow(
+                    dates: weekDates(for: 1),
+                    selectedDate: $selectedDate,
+                    calendar: calendar,
+                    allCoursesHaveIntake: allCoursesHaveIntake
+                )
+                .tag(2)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 56)
+//            .padding(.bottom, 8)
+        }
+//        .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemGray6))
@@ -86,7 +136,6 @@ struct WeekCalendarView: View {
         isAnimating = true
         let direction = newValue == 0 ? -1 : 1
         
-        // Ждём окончания анимации свайпа, потом меняем данные и перецентрируем
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             weekOffset += direction
             selectSameDayInNewWeek()
@@ -105,6 +154,7 @@ private struct WeekRow: View {
     let dates: [Date]
     @Binding var selectedDate: Date
     let calendar: Calendar
+    let allCoursesHaveIntake: (Date) -> Bool
     
     var body: some View {
         HStack(spacing: 0) {
@@ -112,7 +162,8 @@ private struct WeekRow: View {
                 DayCell(
                     date: date,
                     isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                    isToday: calendar.isDateInToday(date)
+                    isToday: calendar.isDateInToday(date),
+                    showDot: allCoursesHaveIntake(date)
                 )
                 .onTapGesture {
                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -121,7 +172,6 @@ private struct WeekRow: View {
                 }
             }
         }
-        .padding(.vertical, 12)
         .padding(.horizontal, 8)
     }
 }
@@ -132,6 +182,7 @@ private struct DayCell: View {
     let date: Date
     let isSelected: Bool
     let isToday: Bool
+    let showDot: Bool
     
     private var dayNumber: String {
         let formatter = DateFormatter()
@@ -139,41 +190,35 @@ private struct DayCell: View {
         return formatter.string(from: date)
     }
     
-    private var dayName: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "EE"
-        return formatter.string(from: date).uppercased()
-    }
-    
     var body: some View {
-        VStack(spacing: 6) {
-            Text(dayName)
-                .font(.caption2)
-                .fontWeight(.medium)
-                .foregroundStyle(isSelected ? .white : .secondary)
-            
+        VStack(spacing: 4) {
             Text(dayNumber)
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(isSelected ? .white : (isToday ? .orange : .primary))
+                .foregroundStyle(isSelected ? .white : (isToday ? .blue : .primary))
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(isSelected ? Color.blue : Color.clear)
+                )
+                .overlay(
+                    Circle()
+                        .stroke(isToday && !isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2)
+                )
+            
+            // Точка под числом
+            Circle()
+                .fill(showDot ? Color.blue : Color.clear)
+                .frame(width: 6, height: 6)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isSelected ? Color.orange : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isToday && !isSelected ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 2)
-        )
     }
 }
 
 #Preview {
     WeekCalendarView(
         selectedDate: .constant(.now),
-        weekOffset: .constant(0)
+        weekOffset: .constant(0),
+        courses: []
     )
     .padding()
 }

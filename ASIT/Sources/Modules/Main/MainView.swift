@@ -71,7 +71,8 @@ struct MainView: View {
         VStack(spacing: 0) {
             WeekCalendarView(
                 selectedDate: $viewModel.selectedDate,
-                weekOffset: $viewModel.weekOffset
+                weekOffset: $viewModel.weekOffset,
+                courses: viewModel.courses
             )
             
             ScrollView {

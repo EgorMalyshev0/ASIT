@@ -44,7 +44,7 @@ struct FullCalendarView: View {
             }
         }
         
-        return months // Прошлое сверху, будущее снизу
+        return months
     }
     
     /// Переупорядоченные символы дней недели (начиная с понедельника)
@@ -167,7 +167,7 @@ private struct MonthView: View {
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isToday: calendar.isDateInToday(date),
                             isDisabled: date > maxDate,
-                            status: dayStatus(for: date)
+                            showDot: allCoursesHaveIntake(on: date)
                         )
                         .onTapGesture {
                             if date <= maxDate {
@@ -176,14 +176,14 @@ private struct MonthView: View {
                         }
                     } else {
                         Color.clear
-                            .frame(height: 44)
+                            .frame(height: 52)
                     }
                 }
             }
         }
     }
     
-    private func dayStatus(for date: Date) -> DayStatus {
+    private func allCoursesHaveIntake(on date: Date) -> Bool {
         let activeCourses = courses.filter { course in
             let startOfDate = calendar.startOfDay(for: date)
             let startOfCourseStart = calendar.startOfDay(for: course.startDate)
@@ -195,21 +195,9 @@ private struct MonthView: View {
                    !course.isPaused
         }
         
-        if activeCourses.isEmpty {
-            return .noCourses
-        }
-        
-        let allHaveIntakes = activeCourses.allSatisfy { $0.hasIntake(on: date) }
-        return allHaveIntakes ? .allDone : .pending
+        guard !activeCourses.isEmpty else { return false }
+        return activeCourses.allSatisfy { $0.hasIntake(on: date) }
     }
-}
-
-// MARK: - DayStatus
-
-private enum DayStatus {
-    case noCourses
-    case pending
-    case allDone
 }
 
 // MARK: - DayCell
@@ -219,26 +207,12 @@ private struct DayCell: View {
     let isSelected: Bool
     let isToday: Bool
     let isDisabled: Bool
-    let status: DayStatus
+    let showDot: Bool
     
     private var dayNumber: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "d"
         return formatter.string(from: date)
-    }
-    
-    private var backgroundColor: Color {
-        if isSelected {
-            return .orange
-        }
-        switch status {
-        case .noCourses:
-            return .clear
-        case .pending:
-            return .orange.opacity(0.2)
-        case .allDone:
-            return .green.opacity(0.2)
-        }
     }
     
     private var textColor: Color {
@@ -249,25 +223,33 @@ private struct DayCell: View {
             return .white
         }
         if isToday {
-            return .orange
+            return .blue
         }
         return .primary
     }
     
     var body: some View {
-        Text(dayNumber)
-            .font(.system(size: 18, weight: isToday || isSelected ? .bold : .regular))
-            .foregroundStyle(textColor)
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(backgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isToday && !isSelected ? Color.orange : Color.clear, lineWidth: 2)
-            )
+        VStack(spacing: 4) {
+            Text(dayNumber)
+                .font(.system(size: 18, weight: isToday || isSelected ? .bold : .regular))
+                .foregroundStyle(textColor)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(isSelected ? Color.blue : Color.clear)
+                )
+                .overlay(
+                    Circle()
+                        .stroke(isToday && !isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                )
+            
+            // Точка под числом
+            Circle()
+                .fill(showDot && !isDisabled ? Color.blue : Color.clear)
+                .frame(width: 6, height: 6)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 52)
     }
 }
 
