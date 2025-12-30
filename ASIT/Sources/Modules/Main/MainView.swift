@@ -11,6 +11,7 @@ struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var courseForIntake: Course?
     @State private var isCalendarPresented = false
+    @State private var isAddCoursePresented = false
     
     private let courseService: CourseManagementServiceProtocol
 
@@ -26,7 +27,7 @@ struct MainView: View {
                 .navigationTitle(viewModel.selectedDate.formatted(date: .long, time: .omitted))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .bottomBar) {
                         Button("Сегодня") {
                             withAnimation {
                                 viewModel.goToToday()
@@ -34,11 +35,18 @@ struct MainView: View {
                         }
                         .disabled(viewModel.isToday)
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .bottomBar) {
                         Button {
                             isCalendarPresented = true
                         } label: {
                             Image(systemName: "calendar")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isAddCoursePresented = true
+                        } label: {
+                            Image(systemName: "plus")
                         }
                     }
                 }
@@ -51,6 +59,9 @@ struct MainView: View {
                 selectedDate: $viewModel.selectedDate,
                 courses: viewModel.courses
             )
+        }
+        .sheet(isPresented: $isAddCoursePresented) {
+            AddCourseView(courseService: courseService)
         }
         .onChange(of: viewModel.selectedDate) { _, _ in
             viewModel.updateWeekOffset()
