@@ -26,6 +26,16 @@ struct MainView: View {
                 .background(Color(.systemGroupedBackground))
                 .navigationTitle(viewModel.selectedDate.formatted())
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Сегодня") {
+                            withAnimation {
+                                viewModel.goToToday()
+                            }
+                        }
+                        .disabled(viewModel.isToday)
+                    }
+                }
         }
         .sheet(isPresented: $isIntakeAddingPresented) {
             if let course = courseForIntake {

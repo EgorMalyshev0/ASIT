@@ -66,6 +66,15 @@ final class MainViewModel {
         
         courseService.addIntake(intake, to: course)
     }
+    
+    func goToToday() {
+        selectedDate = Date()
+        weekOffset = 0
+    }
+    
+    var isToday: Bool {
+        Calendar.current.isDateInToday(selectedDate)
+    }
 
     private func setupBindings() {
         courseService.coursesPublisher
