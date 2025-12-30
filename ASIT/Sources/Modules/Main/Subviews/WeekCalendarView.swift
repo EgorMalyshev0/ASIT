@@ -34,6 +34,24 @@ struct WeekCalendarView: View {
         return formatter.string(from: firstDate).capitalized
     }
     
+    /// Индекс текущего выбранного дня в неделе (0 = понедельник, 6 = воскресенье)
+    private var selectedDayIndex: Int {
+        let weekday = calendar.component(.weekday, from: selectedDate)
+        // Конвертируем: 1 (вс) -> 6, 2 (пн) -> 0, 3 (вт) -> 1, ...
+        return (weekday + 5) % 7
+    }
+    
+    /// Выбирает день с тем же индексом в новой неделе
+    private func selectSameDayInNewWeek() {
+        let today = calendar.startOfDay(for: Date())
+        guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)),
+              let offsetWeekStart = calendar.date(byAdding: .day, value: weekOffset * 7, to: weekStart),
+              let newDate = calendar.date(byAdding: .day, value: selectedDayIndex, to: offsetWeekStart) else {
+            return
+        }
+        selectedDate = newDate
+    }
+    
     var body: some View {
         VStack(spacing: 12) {            
             // Дни недели
@@ -65,11 +83,13 @@ struct WeekCalendarView: View {
                         // Свайп влево - следующая неделя
                         withAnimation(.easeInOut(duration: 0.2)) {
                             weekOffset += 1
+                            selectSameDayInNewWeek()
                         }
                     } else if value.translation.width > 0 {
                         // Свайп вправо - предыдущая неделя
                         withAnimation(.easeInOut(duration: 0.2)) {
                             weekOffset -= 1
+                            selectSameDayInNewWeek()
                         }
                     }
                 }

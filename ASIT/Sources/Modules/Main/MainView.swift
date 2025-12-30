@@ -54,7 +54,9 @@ struct MainView: View {
         .sheet(item: $courseForIntake) { course in
             IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService)
         }
-        .sheet(isPresented: $isCalendarPresented) {
+        .sheet(isPresented: $isCalendarPresented, onDismiss: {
+            viewModel.updateWeekOffset()
+        }) {
             FullCalendarView(
                 selectedDate: $viewModel.selectedDate,
                 courses: viewModel.courses
@@ -62,9 +64,6 @@ struct MainView: View {
         }
         .sheet(isPresented: $isAddCoursePresented) {
             AddCourseView(courseService: courseService)
-        }
-        .onChange(of: viewModel.selectedDate) { _, _ in
-            viewModel.updateWeekOffset()
         }
     }
     

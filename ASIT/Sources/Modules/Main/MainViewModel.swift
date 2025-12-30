@@ -83,7 +83,8 @@ final class MainViewModel {
         
         let selectedDay = calendar.startOfDay(for: selectedDate)
         let daysDiff = calendar.dateComponents([.day], from: currentWeekStart, to: selectedDay).day ?? 0
-        weekOffset = daysDiff / 7
+        // Используем floor деление для корректной работы с отрицательными числами
+        weekOffset = Int(floor(Double(daysDiff) / 7.0))
     }
     
     var isToday: Bool {
