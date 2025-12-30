@@ -24,7 +24,17 @@ final class IntakeAddingViewModel {
     
     private(set) var availableDosages: [Dosage] = []
     
-    var canAddIntake: Bool {
+    /// Приём на эту дату (если есть - редактируем)
+    private var existingIntake: Intake? {
+        course.intake(on: date)
+    }
+    
+    /// Редактируем существующий приём?
+    var isEditing: Bool {
+        existingIntake != nil
+    }
+    
+    var canSave: Bool {
         selectedPackageId != nil && selectedDosage != nil
     }
     
@@ -35,11 +45,16 @@ final class IntakeAddingViewModel {
         self.date = date
         self.courseService = courseService
         loadMedication()
-        prefillFromLastIntake()
+        prefillFromIntake()
     }
     
-    func addIntake() {
+    func save() {
         guard let selectedPackageId, let selectedDosage else { return }
+        
+        // Если редактируем - удаляем старый приём
+        if let existingIntake = existingIntake {
+            courseService.deleteIntake(existingIntake, from: course)
+        }
         
         let intake = Intake(
             date: date,
@@ -51,7 +66,13 @@ final class IntakeAddingViewModel {
         
         courseService.addIntake(intake, to: course)
     }
-    
+
+    func delete() {
+        guard let existingIntake else { return }
+
+        courseService.deleteIntake(existingIntake, from: course)
+    }
+
     private func loadMedication() {
         guard let url = Bundle.main.url(forResource: "Medications", withExtension: "json") else {
             return
@@ -71,17 +92,19 @@ final class IntakeAddingViewModel {
         }
     }
     
-    private func prefillFromLastIntake() {
-        guard let lastIntake = course.lastIntake else { return }
+    private func prefillFromIntake() {
+        // Приоритет: приём на эту дату > последний приём
+        let targetIntake = existingIntake ?? course.lastIntake
+        guard let targetIntake = targetIntake else { return }
         
-        // Установить упаковку из последнего приёма
-        if availablePackages.contains(where: { $0.id == lastIntake.packageId }) {
-            selectedPackageId = lastIntake.packageId
+        // Установить упаковку
+        if availablePackages.contains(where: { $0.id == targetIntake.packageId }) {
+            selectedPackageId = targetIntake.packageId
         }
         
-        // Установить дозировку из последнего приёма
-        if availableDosages.contains(lastIntake.dosage) {
-            selectedDosage = lastIntake.dosage
+        // Установить дозировку
+        if availableDosages.contains(targetIntake.dosage) {
+            selectedDosage = targetIntake.dosage
         }
     }
     
@@ -103,4 +126,3 @@ final class IntakeAddingViewModel {
         selectedDosage = availableDosages.first
     }
 }
-

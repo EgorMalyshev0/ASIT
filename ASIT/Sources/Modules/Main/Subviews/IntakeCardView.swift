@@ -12,34 +12,37 @@ struct IntakeCardView: View {
     let course: Course
     let selectedDate: Date
     let medication: Medication?
-    let onSelect: (Course) -> Void
-    let onAddIntake: (Course) -> Void
-    let onConfirmIntake: (Course) -> Void
+    let onTap: () -> Void
+    let onConfirmIntake: () -> Void
     
-    private var isIntakeDone: Bool {
-        course.hasIntake(on: selectedDate)
+    private var intakeForDate: Intake? {
+        course.intake(on: selectedDate)
     }
     
-    /// Есть ли хотя бы один приём в истории курса
+    private var isIntakeDone: Bool {
+        intakeForDate != nil
+    }
+    
+    /// Есть ли хотя бы один приём в истории курса (для быстрого подтверждения)
     private var hasAnyIntake: Bool {
         course.lastIntake != nil
     }
     
-    /// Упаковка из последнего приёма
+    /// Упаковка из приёма на эту дату или из последнего приёма
     private var packageName: String? {
-        guard let lastIntake = course.lastIntake,
+        let targetIntake = intakeForDate ?? course.lastIntake
+        guard let targetIntake = targetIntake,
               let medication = medication else { return nil }
-        return medication.packages.first { $0.id == lastIntake.packageId }?.name.ru
+        return medication.packages.first { $0.id == targetIntake.packageId }?.name.ru
     }
     
-    /// Дозировка из последнего приёма
+    /// Дозировка из приёма на эту дату или из последнего приёма
     private var dosage: Dosage? {
-        course.lastIntake?.dosage
+        (intakeForDate ?? course.lastIntake)?.dosage
     }
 
     var body: some View {
         HStack(spacing: 12) {
-            // Индикатор статуса
             Circle()
                 .fill(statusColor)
                 .frame(width: 12, height: 12)
@@ -64,8 +67,8 @@ struct IntakeCardView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
-                actionButton
-                    .padding(.top, 8)
+                statusView
+                    .padding(.top, 4)
             }
             
             Image(systemName: "chevron.right")
@@ -76,33 +79,29 @@ struct IntakeCardView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(isIntakeDone ? Color(.systemGray6) : Color(.systemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
+                .shadow(color: .primary.opacity(0.1), radius: 8, x: 0, y: 2)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(borderColor, lineWidth: 1)
-        )
+//        .overlay(
+//            RoundedRectangle(cornerRadius: 16)
+//                .stroke(borderColor, lineWidth: 1)
+//        )
         .contentShape(Rectangle())
         .onTapGesture {
-            onSelect(course)
+            onTap()
         }
     }
     
     @ViewBuilder
-    private var actionButton: some View {
+    private var statusView: some View {
         if isIntakeDone {
-            // Приём на сегодня уже подтверждён
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Приём подтверждён")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            // Приём подтверждён
+            Text("Приём подтверждён")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         } else if hasAnyIntake {
-            // Есть предыдущие приёмы - можно подтвердить с теми же параметрами
+            // Есть предыдущие приёмы - можно быстро подтвердить
             Button {
-                onConfirmIntake(course)
+                onConfirmIntake()
             } label: {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
@@ -112,17 +111,12 @@ struct IntakeCardView: View {
             .buttonStyle(.borderedProminent)
             .tint(.green)
         } else {
-            // Нет приёмов - нужно сначала добавить
-            Button {
-                onAddIntake(course)
-            } label: {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Добавить приём")
-                }
+            // Нет приёмов - только статус
+            HStack {
+                Text("Нажмите для добавления")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.blue)
         }
     }
     
@@ -147,7 +141,7 @@ struct IntakeCardView: View {
     }
 }
 
-#Preview("Нет приёмов") {
+#Preview {
     IntakeCardView(
         course: .mock,
         selectedDate: .now,
@@ -163,9 +157,8 @@ struct IntakeCardView: View {
                 )
             ]
         ),
-        onSelect: { _ in },
-        onAddIntake: { _ in },
-        onConfirmIntake: { _ in }
+        onTap: {},
+        onConfirmIntake: {}
     )
     .padding()
 }

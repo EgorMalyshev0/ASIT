@@ -9,8 +9,6 @@ import SwiftUI
 
 struct MainView: View {
     @State private var viewModel: MainViewModel
-    @State private var selectedCourse: Course?
-    @State private var isIntakeAddingPresented = false
     @State private var courseForIntake: Course?
     
     private let courseService: CourseManagementServiceProtocol
@@ -24,7 +22,7 @@ struct MainView: View {
         NavigationStack {
             mainContent
                 .background(Color(.systemGroupedBackground))
-                .navigationTitle(viewModel.selectedDate.formatted())
+                .navigationTitle(viewModel.selectedDate.formatted(date: .long, time: .omitted))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -37,10 +35,8 @@ struct MainView: View {
                     }
                 }
         }
-        .sheet(isPresented: $isIntakeAddingPresented) {
-            if let course = courseForIntake {
-                IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService)
-            }
+        .sheet(item: $courseForIntake) { course in
+            IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService)
         }
     }
     
@@ -55,20 +51,16 @@ struct MainView: View {
                 if viewModel.activeCoursesForSelectedDate.isEmpty {
                     emptyStateView
                 } else {
-                    LazyVStack(spacing: 12) {
+                    VStack(spacing: 12) {
                         ForEach(viewModel.activeCoursesForSelectedDate) { course in
                             IntakeCardView(
                                 course: course,
                                 selectedDate: viewModel.selectedDate,
                                 medication: viewModel.medication(for: course),
-                                onSelect: { course in
-                                    selectedCourse = course
-                                },
-                                onAddIntake: { course in
+                                onTap: {
                                     courseForIntake = course
-                                    isIntakeAddingPresented = true
                                 },
-                                onConfirmIntake: { course in
+                                onConfirmIntake: {
                                     viewModel.confirmIntake(for: course)
                                 }
                             )
@@ -89,11 +81,6 @@ struct MainView: View {
             Text("Нет активных курсов")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            
-            Text("На эту дату нет запланированных приёмов лекарств")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
         }
         .padding(.top, 40)
         .padding(.horizontal)

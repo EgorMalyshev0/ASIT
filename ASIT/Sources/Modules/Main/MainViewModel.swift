@@ -68,7 +68,7 @@ final class MainViewModel {
     }
     
     func goToToday() {
-        selectedDate = Date()
+        selectedDate = Calendar.current.startOfDay(for: Date())
         weekOffset = 0
     }
     

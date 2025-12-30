@@ -18,7 +18,7 @@ struct IntakeAddingView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
+                Section(viewModel.medication?.name.ru ?? "") {
                     Picker("Упаковка", selection: $viewModel.selectedPackageId) {
                         ForEach(viewModel.availablePackages, id: \.id) { package in
                             Text(package.name.ru)
@@ -33,23 +33,38 @@ struct IntakeAddingView: View {
                         }
                     }
                 }
-                
+
                 Section {
                     Button {
-                        viewModel.addIntake()
+                        viewModel.save()
                         dismiss()
                     } label: {
                         HStack {
                             Spacer()
-                            Text("Добавить приём")
+                            Text(viewModel.isEditing ? "Изменить" : "Добавить")
                                 .fontWeight(.semibold)
                             Spacer()
                         }
                     }
-                    .disabled(!viewModel.canAddIntake)
+                    .disabled(!viewModel.canSave)
+
+                    if viewModel.isEditing {
+                        Button {
+                            viewModel.delete()
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Удалить")
+                                    .fontWeight(.semibold)
+                                Spacer()
+                            }
+                        }
+                        .tint(.red)
+                    }
                 }
             }
-            .navigationTitle(viewModel.medication?.name.ru ?? "Новый приём")
+            .navigationTitle(viewModel.isEditing ? "Изменить приём" : "Добавить приём")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -66,4 +81,3 @@ struct IntakeAddingView: View {
 #Preview {
     IntakeAddingView(course: .mock, date: .now, courseService: MockCourseManagementService())
 }
-
