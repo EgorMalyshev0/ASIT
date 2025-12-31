@@ -34,6 +34,13 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Button {
+                    NotificationService.shared.cancelAllReminders()
+                } label: {
+                    Text("Отменить все")
+                }
+
             }
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)

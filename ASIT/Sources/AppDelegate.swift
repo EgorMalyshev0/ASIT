@@ -60,34 +60,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let notificationDate = response.notification.date
         
         if response.actionIdentifier == NotificationService.takenActionIdentifier {
-            handleTakenAction(courseId: courseId, date: notificationDate)
+            courseService?.handleTakenActionFromPush(courseId: courseId, date: notificationDate)
         }
-    }
-    
-    // MARK: - Private
-    
-    @MainActor
-    private func handleTakenAction(courseId: UUID, date: Date) {
-        guard let courseService,
-              let course = courseService.courses.first(where: { $0.id == courseId }),
-              let lastIntake = course.lastIntake else {
-            return
-        }
-        
-        // Проверяем, нет ли уже приёма на эту дату
-        guard !course.hasIntake(on: date) else {
-            return
-        }
-        
-        let intake = Intake(
-            date: date,
-            medicationId: course.medicationId,
-            packageId: lastIntake.packageId,
-            dosage: lastIntake.dosage,
-            comment: nil
-        )
-        
-        courseService.addIntake(intake, to: course)
     }
 }
 

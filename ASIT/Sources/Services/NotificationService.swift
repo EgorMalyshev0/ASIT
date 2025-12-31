@@ -63,6 +63,7 @@ final class NotificationService {
     /// Создаёт ежедневное напоминание для курса
     func scheduleReminder(for course: Course, reminder: Reminder) async {
         let status = await checkAuthorizationStatus()
+
         guard status == .authorized else { return }
         
         let content = UNMutableNotificationContent()
@@ -70,8 +71,9 @@ final class NotificationService {
         content.body = "Пора принять лекарство"
         content.sound = .default
         content.categoryIdentifier = Self.categoryIdentifier
-        content.userInfo = ["courseId": course.id.uuidString]
-        
+        content.userInfo = ["courseId": course.id.uuidString,
+                            "reminderId": reminder.id.uuidString]
+
         var dateComponents = DateComponents()
         dateComponents.hour = reminder.hour
         dateComponents.minute = reminder.minute
@@ -79,7 +81,7 @@ final class NotificationService {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
         
         let request = UNNotificationRequest(
-            identifier: notificationIdentifier(for: course),
+            identifier: reminder.id.uuidString,
             content: content,
             trigger: trigger
         )
@@ -92,8 +94,8 @@ final class NotificationService {
     }
     
     /// Удаляет напоминание для курса
-    func cancelReminder(for course: Course) {
-        let identifier = notificationIdentifier(for: course)
+    func cancelReminder(_ reminder: Reminder) {
+        let identifier = reminder.id.uuidString
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
         notificationCenter.removeDeliveredNotifications(withIdentifiers: [identifier])
     }
@@ -102,32 +104,6 @@ final class NotificationService {
     func cancelAllReminders() {
         notificationCenter.removeAllPendingNotificationRequests()
         notificationCenter.removeAllDeliveredNotifications()
-    }
-    
-    /// Синхронизирует уведомления с актуальным состоянием курсов
-    /// Вызывать при запуске приложения
-    func syncNotifications(with courses: [Course]) async {
-        let status = await checkAuthorizationStatus()
-        guard status == .authorized else { return }
-        
-        for course in courses {
-            let shouldHaveNotification = !course.isCompleted &&
-                                         !course.isPaused &&
-                                         course.endDate > Date() &&
-                                         !course.reminders.isEmpty
-            
-            if shouldHaveNotification, let reminder = course.reminders.first {
-                await scheduleReminder(for: course, reminder: reminder)
-            } else {
-                cancelReminder(for: course)
-            }
-        }
-    }
-    
-    // MARK: - Private
-    
-    private func notificationIdentifier(for course: Course) -> String {
-        "reminder_\(course.id.uuidString)"
     }
 }
 

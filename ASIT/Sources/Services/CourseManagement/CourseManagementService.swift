@@ -91,6 +91,9 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         course.reminders.append(reminder)
         save()
         fetchCourses()
+        Task {
+            await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+        }
     }
     
     func deleteReminder(_ reminder: Reminder, from course: Course) {
@@ -100,8 +103,31 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         modelContext.delete(reminder)
         save()
         fetchCourses()
+        NotificationService.shared.cancelReminder(reminder)
     }
-    
+
+    func handleTakenActionFromPush(courseId: UUID, date: Date) {
+        guard let course = courses.first(where: { $0.id == courseId }),
+              let lastIntake = course.lastIntake else {
+            return
+        }
+
+        // Проверяем, нет ли уже приёма на эту дату
+        guard !course.hasIntake(on: date) else {
+            return
+        }
+
+        let intake = Intake(
+            date: date,
+            medicationId: course.medicationId,
+            packageId: lastIntake.packageId,
+            dosage: lastIntake.dosage,
+            comment: nil
+        )
+
+        addIntake(intake, to: course)
+    }
+
     // MARK: - Private
     
     private func save() {
@@ -162,7 +188,9 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
             course.reminders.remove(at: index)
         }
     }
-    
+
+    func handleTakenActionFromPush(courseId: UUID, date: Date) {}
+
     static var mockCourses: [Course] {
         // Курс с приёмами (будет показывать "Подтвердить приём")
         let courseWithIntakes = Course(

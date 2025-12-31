@@ -20,7 +20,6 @@ struct ASITApp: App {
                 .task {
                     appDelegate.courseService = courseService
                     _ = await NotificationService.shared.requestAuthorization()
-                    await NotificationService.shared.syncNotifications(with: courseService.courses)
                 }
         }
         .environmentObject(localizationService)

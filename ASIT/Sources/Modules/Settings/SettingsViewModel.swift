@@ -29,15 +29,10 @@ final class SettingsViewModel {
     func addReminder(hour: Int, minute: Int, to course: Course) {
         let reminder = Reminder(hour: hour, minute: minute)
         courseService.addReminder(reminder, to: course)
-        
-        Task {
-            await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
-        }
     }
     
     func deleteReminder(_ reminder: Reminder, from course: Course) {
         courseService.deleteReminder(reminder, from: course)
-        NotificationService.shared.cancelReminder(for: course)
     }
     
     private func setupBindings() {
