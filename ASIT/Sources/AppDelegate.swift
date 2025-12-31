@@ -9,13 +9,19 @@ import UIKit
 import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    var courseService: CourseManagementService?
+    let courseService = CourseManagementService()
+    let localizationService = LocalizationService()
     
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        
+        Task {
+            await NotificationService.shared.requestAuthorization()
+        }
+        
         return true
     }
     
@@ -32,7 +38,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         
         guard let courseIdString = userInfo["courseId"] as? String,
               let courseId = UUID(uuidString: courseIdString),
-              let course = courseService?.courses.first(where: { $0.id == courseId }) else {
+              let course = courseService.courses.first(where: { $0.id == courseId }) else {
             return [.banner, .sound]
         }
         
@@ -60,7 +66,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let notificationDate = response.notification.date
         
         if response.actionIdentifier == NotificationService.takenActionIdentifier {
-            courseService?.handleTakenActionFromPush(courseId: courseId, date: notificationDate)
+            courseService.handleTakenActionFromPush(courseId: courseId, date: notificationDate)
         }
     }
 }

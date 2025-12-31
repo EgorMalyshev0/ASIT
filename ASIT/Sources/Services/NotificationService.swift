@@ -28,7 +28,7 @@ final class NotificationService {
         let takenAction = UNNotificationAction(
             identifier: Self.takenActionIdentifier,
             title: "Принял",
-            options: [.foreground]
+            options: []
         )
         
         let category = UNNotificationCategory(
