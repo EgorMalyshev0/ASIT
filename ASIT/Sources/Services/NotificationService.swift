@@ -15,6 +15,8 @@ final class NotificationService {
     
     /// Идентификатор действия "Принял"
     static let takenActionIdentifier = "TAKEN_ACTION"
+    /// Идентификатор действия "Отложить на час"
+    static let snoozeActionIdentifier = "SNOOZE_ONE_HOUR"
     /// Идентификатор категории уведомлений
     static let categoryIdentifier = "MEDICATION_REMINDER"
     
@@ -31,9 +33,15 @@ final class NotificationService {
             options: []
         )
         
+        let snoozeAction = UNNotificationAction(
+            identifier: Self.snoozeActionIdentifier,
+            title: "Отложить на час",
+            options: []
+        )
+        
         let category = UNNotificationCategory(
             identifier: Self.categoryIdentifier,
-            actions: [takenAction],
+            actions: [takenAction, snoozeAction],
             intentIdentifiers: [],
             options: []
         )
@@ -62,30 +70,57 @@ final class NotificationService {
     
     /// Создаёт ежедневное напоминание для курса
     func scheduleReminder(for course: Course, reminder: Reminder) async {
-        let status = await checkAuthorizationStatus()
-
-        guard status == .authorized else { return }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "Напоминание"
-        content.body = "Пора принять лекарство"
-        content.sound = .default
-        content.categoryIdentifier = Self.categoryIdentifier
-        content.userInfo = ["courseId": course.id.uuidString,
-                            "reminderId": reminder.id.uuidString]
-
         var dateComponents = DateComponents()
         dateComponents.hour = reminder.hour
         dateComponents.minute = reminder.minute
         
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        let content = makeNotificationContent(courseId: course.id, reminderId: reminder.id)
+        let request = UNNotificationRequest(identifier: reminder.id.uuidString, content: content, trigger: trigger)
         
-        let request = UNNotificationRequest(
-            identifier: reminder.id.uuidString,
-            content: content,
-            trigger: trigger
-        )
+        await addNotificationRequest(request)
+    }
+    
+    /// Планирует одноразовое уведомление через указанный интервал (для snooze)
+    func scheduleOneTimeReminder(
+        courseId: UUID,
+        reminderId: UUID,
+        originalDate: Date,
+        afterInterval interval: TimeInterval
+    ) async {
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let content = makeNotificationContent(courseId: courseId, reminderId: reminderId, originalDate: originalDate)
+        let request = UNNotificationRequest(identifier: reminderId.uuidString, content: content, trigger: trigger)
         
+        await addNotificationRequest(request)
+    }
+    
+    // MARK: - Private Helpers
+    
+    private func isAuthorized() async -> Bool {
+        await checkAuthorizationStatus() == .authorized
+    }
+    
+    private func makeNotificationContent(courseId: UUID, reminderId: UUID, originalDate: Date? = nil) -> UNNotificationContent {
+        let content = UNMutableNotificationContent()
+        content.title = "Напоминание"
+        content.body = "Пора принять лекарство"
+        content.sound = .default
+        content.categoryIdentifier = Self.categoryIdentifier
+        
+        var userInfo: [String: Any] = [
+            "courseId": courseId.uuidString,
+            "reminderId": reminderId.uuidString
+        ]
+        if let originalDate {
+            userInfo["originalDate"] = originalDate.timeIntervalSince1970
+        }
+        content.userInfo = userInfo
+        
+        return content
+    }
+    
+    private func addNotificationRequest(_ request: UNNotificationRequest) async {
         do {
             try await notificationCenter.add(request)
         } catch {

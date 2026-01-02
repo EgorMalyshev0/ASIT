@@ -65,8 +65,30 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Дата доставки уведомления — к этому дню относится приём
         let notificationDate = response.notification.date
         
-        if response.actionIdentifier == NotificationService.takenActionIdentifier {
-            courseService.handleTakenActionFromPush(courseId: courseId, date: notificationDate)
+        // Дата для записи приёма: originalDate (если было отложено) или дата доставки
+        let intakeDate: Date
+        if let timestamp = userInfo["originalDate"] as? TimeInterval {
+            intakeDate = Date(timeIntervalSince1970: timestamp)
+        } else {
+            intakeDate = notificationDate
+        }
+        
+        switch response.actionIdentifier {
+        case NotificationService.takenActionIdentifier:
+            courseService.handleTakenActionFromPush(courseId: courseId, date: intakeDate)
+            
+        case NotificationService.snoozeActionIdentifier:
+            // Откладываем напоминание на час от текущего времени
+            let reminderId = (userInfo["reminderId"] as? String).flatMap { UUID(uuidString: $0) } ?? UUID()
+            await NotificationService.shared.scheduleOneTimeReminder(
+                courseId: courseId,
+                reminderId: reminderId,
+                originalDate: intakeDate,
+                afterInterval: 3600 // 1 час
+            )
+            
+        default:
+            break
         }
     }
 }
