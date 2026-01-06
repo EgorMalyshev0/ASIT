@@ -9,76 +9,26 @@ import SwiftUI
 
 /// Горизонтальный календарь недели с paging скроллом
 struct WeekCalendarView: View {
-    @Binding var selectedDate: Date
-    @Binding var weekOffset: Int
-    let courses: [Course]
+    let weeks: [[WeekDayModel]]
+    let onDaySelected: (WeekDayModel) -> Void
+    let onWeekChanged: (Int) -> Void
     
+    /// Внутреннее состояние для TabView — всегда центрируется на 1
     @State private var currentPage: Int = 1
-    @State private var isAnimating: Bool = false
+    @State private var isAnimating = false
 
-    private let calendar = Calendar.current
-    private let weekdaySymbols = Calendar.current.shortWeekdaySymbols
-    
-    /// Переупорядоченные символы дней недели (начиная с понедельника)
-    private var reorderedWeekdays: [String] {
-        var symbols = weekdaySymbols
+    private let weekdaySymbols: [String] = {
+        var symbols = Calendar.current.shortWeekdaySymbols
         let sunday = symbols.removeFirst()
         symbols.append(sunday)
         return symbols
-    }
-    
-    /// Индекс текущего выбранного дня в неделе (0 = понедельник, 6 = воскресенье)
-    private var selectedDayIndex: Int {
-        let weekday = calendar.component(.weekday, from: selectedDate)
-        return (weekday + 5) % 7
-    }
-    
-    /// Генерирует даты для недели с указанным offset
-    private func weekDates(for offset: Int) -> [Date] {
-        let today = calendar.startOfDay(for: Date())
-        guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)),
-              let offsetWeekStart = calendar.date(byAdding: .day, value: (weekOffset + offset) * 7, to: weekStart) else {
-            return []
-        }
-        
-        return (0..<7).compactMap { dayOffset in
-            calendar.date(byAdding: .day, value: dayOffset, to: offsetWeekStart)
-        }
-    }
-    
-    /// Выбирает день с тем же индексом в новой неделе
-    private func selectSameDayInNewWeek() {
-        let today = calendar.startOfDay(for: Date())
-        guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)),
-              let offsetWeekStart = calendar.date(byAdding: .day, value: weekOffset * 7, to: weekStart),
-              let newDate = calendar.date(byAdding: .day, value: selectedDayIndex, to: offsetWeekStart) else {
-            return
-        }
-        selectedDate = newDate
-    }
-    
-    /// Проверяет все ли активные курсы на дату имеют приёмы
-    private func allCoursesHaveIntake(on date: Date) -> Bool {
-        let activeCourses = courses.filter { course in
-            let startOfDate = calendar.startOfDay(for: date)
-            let startOfCourseStart = calendar.startOfDay(for: course.startDate)
-            let startOfCourseEnd = calendar.startOfDay(for: course.endDate)
-            
-            return startOfDate >= startOfCourseStart &&
-                   startOfDate <= startOfCourseEnd &&
-                   !course.isCompleted &&
-                   !course.isPaused
-        }
-        
-        guard !activeCourses.isEmpty else { return false }
-        return activeCourses.allSatisfy { $0.hasIntake(on: date) }
-    }
+    }()
     
     var body: some View {
         VStack(spacing: 0) {
             // Фиксированная строка с днями недели
             HStack(spacing: 0) {
-                ForEach(reorderedWeekdays, id: \.self) { symbol in
+                ForEach(weekdaySymbols, id: \.self) { symbol in
                     Text(symbol.uppercased())
                         .font(.caption2)
                         .fontWeight(.medium)
@@ -92,29 +42,10 @@ struct WeekCalendarView: View {
             
             // Скроллящиеся числа
             TabView(selection: $currentPage) {
-                WeekRow(
-                    dates: weekDates(for: -1),
-                    selectedDate: $selectedDate,
-                    calendar: calendar,
-                    allCoursesHaveIntake: allCoursesHaveIntake
-                )
-                .tag(0)
-                
-                WeekRow(
-                    dates: weekDates(for: 0),
-                    selectedDate: $selectedDate,
-                    calendar: calendar,
-                    allCoursesHaveIntake: allCoursesHaveIntake
-                )
-                .tag(1)
-                
-                WeekRow(
-                    dates: weekDates(for: 1),
-                    selectedDate: $selectedDate,
-                    calendar: calendar,
-                    allCoursesHaveIntake: allCoursesHaveIntake
-                )
-                .tag(2)
+                ForEach(Array(weeks.enumerated()), id: \.offset) { index, week in
+                    WeekRow(days: week, onDaySelected: onDaySelected)
+                        .tag(index)
+                }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 56)
@@ -126,18 +57,22 @@ struct WeekCalendarView: View {
         .onChange(of: currentPage) { oldValue, newValue in
             handlePageChange(from: oldValue, to: newValue)
         }
+        .onChange(of: weeks) {
+            // При обновлении weeks извне — сбрасываем на центр
+            currentPage = 1
+        }
     }
     
     private func handlePageChange(from oldValue: Int, to newValue: Int) {
+        // Центральная неделя — индекс 1
         guard newValue != 1, !isAnimating else { return }
         
         isAnimating = true
         let direction = newValue == 0 ? -1 : 1
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            weekOffset += direction
-            selectSameDayInNewWeek()
-            currentPage = 1
+            onWeekChanged(direction)
+            // currentPage сбросится на 1 через onChange(of: weeks)
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isAnimating = false
@@ -149,25 +84,18 @@ struct WeekCalendarView: View {
 // MARK: - WeekRow
 
 private struct WeekRow: View {
-    let dates: [Date]
-    @Binding var selectedDate: Date
-    let calendar: Calendar
-    let allCoursesHaveIntake: (Date) -> Bool
+    let days: [WeekDayModel]
+    let onDaySelected: (WeekDayModel) -> Void
     
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(dates, id: \.self) { date in
-                DayCell(
-                    date: date,
-                    isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                    isToday: calendar.isDateInToday(date),
-                    showDot: allCoursesHaveIntake(date)
-                )
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        selectedDate = date
+            ForEach(days) { day in
+                DayCell(day: day)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            onDaySelected(day)
+                        }
                     }
-                }
             }
         }
         .padding(.horizontal, 8)
@@ -177,35 +105,26 @@ private struct WeekRow: View {
 // MARK: - DayCell
 
 private struct DayCell: View {
-    let date: Date
-    let isSelected: Bool
-    let isToday: Bool
-    let showDot: Bool
-    
-    private var dayNumber: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
-    }
+    let day: WeekDayModel
     
     var body: some View {
         VStack(spacing: 4) {
-            Text(dayNumber)
+            Text(day.dayNumber)
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(isSelected ? .white : (isToday ? .blue : .primary))
+                .foregroundStyle(day.isSelected ? .white : (day.isToday ? .blue : .primary))
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
-                        .fill(isSelected ? Color.blue : Color.clear)
+                        .fill(day.isSelected ? Color.blue : Color.clear)
                 )
                 .overlay(
                     Circle()
-                        .stroke(isToday && !isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2)
+                        .stroke(day.isToday && !day.isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2)
                 )
             
-            // Точка под числом
+            // Точка под числом — все курсы приняты
             Circle()
-                .fill(showDot ? Color.blue : Color.clear)
+                .fill(day.allIntakesTaken ? Color.blue : Color.clear)
                 .frame(width: 6, height: 6)
         }
         .frame(maxWidth: .infinity)
@@ -213,10 +132,27 @@ private struct DayCell: View {
 }
 
 #Preview {
-    WeekCalendarView(
-        selectedDate: .constant(.now),
-        weekOffset: .constant(0),
-        courses: []
+    let today = Date()
+    let calendar = Calendar.current
+    
+    let weeks: [[WeekDayModel]] = (-1...1).map { weekOffset in
+        (0..<7).map { dayOffset in
+            let date = calendar.date(byAdding: .day, value: weekOffset * 7 + dayOffset, to: today)!
+            return WeekDayModel(
+                date: date,
+                dayNumber: "\(calendar.component(.day, from: date))",
+                isSelected: dayOffset == 3 && weekOffset == 0,
+                isToday: calendar.isDateInToday(date),
+                allIntakesTaken: dayOffset % 3 == 0,
+                hasCourses: true
+            )
+        }
+    }
+    
+    return WeekCalendarView(
+        weeks: weeks,
+        onDaySelected: { _ in },
+        onWeekChanged: { _ in }
     )
     .padding()
 }

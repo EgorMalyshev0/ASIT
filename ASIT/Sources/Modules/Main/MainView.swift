@@ -63,7 +63,7 @@ struct MainView: View {
             IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService)
         }
         .sheet(isPresented: $isCalendarPresented, onDismiss: {
-            viewModel.updateWeekOffset()
+            viewModel.selectDate(viewModel.selectedDate)
         }) {
             FullCalendarView(
                 selectedDate: $viewModel.selectedDate,
@@ -81,34 +81,48 @@ struct MainView: View {
     private var mainContent: some View {
         VStack(spacing: 0) {
             WeekCalendarView(
-                selectedDate: $viewModel.selectedDate,
-                weekOffset: $viewModel.weekOffset,
-                courses: viewModel.courses
+                weeks: viewModel.weekDays,
+                onDaySelected: { day in
+                    viewModel.selectWeekDay(day)
+                },
+                onWeekChanged: { direction in
+                    viewModel.changeWeek(direction: direction)
+                }
             )
             
-            ScrollView {
-                if viewModel.activeCoursesForSelectedDate.isEmpty {
-                    emptyStateView
-                } else {
-                    VStack(spacing: 12) {
-                        ForEach(viewModel.activeCoursesForSelectedDate) { course in
-                            IntakeCardView(
-                                course: course,
-                                selectedDate: viewModel.selectedDate,
-                                medication: viewModel.medication(for: course),
-                                onTap: {
-                                    courseForIntake = course
-                                },
-                                onConfirmIntake: {
-                                    viewModel.confirmIntake(for: course)
-                                }
-                            )
-                        }
+            TabView(selection: $viewModel.selectedPageIndex) {
+                ForEach(viewModel.dayPages) { page in
+                    dayPageView(for: page)
+                        .tag(page.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        }
+    }
+    
+    private func dayPageView(for page: DayPageModel) -> some View {
+        ScrollView {
+            if page.courses.isEmpty {
+                emptyStateView
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(page.courses) { course in
+                        IntakeCardView(
+                            course: course,
+                            selectedDate: page.date,
+                            medication: viewModel.medication(for: course),
+                            onTap: {
+                                courseForIntake = course
+                            },
+                            onConfirmIntake: {
+                                viewModel.confirmIntake(for: course, on: page.date)
+                            }
+                        )
                     }
                 }
             }
-            .padding()
         }
+        .padding()
     }
 
     private var emptyStateView: some View {
