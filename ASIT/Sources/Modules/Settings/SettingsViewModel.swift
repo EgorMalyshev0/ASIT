@@ -35,6 +35,10 @@ final class SettingsViewModel {
         courseService.deleteReminder(reminder, from: course)
     }
     
+    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course) {
+        courseService.updateReminder(reminder, hour: hour, minute: minute, in: course)
+    }
+    
     private func setupBindings() {
         courseService.coursesPublisher
             .receive(on: DispatchQueue.main)

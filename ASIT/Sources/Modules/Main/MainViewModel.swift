@@ -128,7 +128,7 @@ final class MainViewModel {
     
     private func handlePageIndexChange(_ newIndex: Int) {
         guard let page = dayPages[safe: newIndex] else { return }
-        
+
         selectedDate = page.date
         
         // Пересчитываем если близко к краю

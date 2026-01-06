@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     @State private var viewModel: SettingsViewModel
     @State private var courseForReminder: Course?
+    @State private var reminderToEdit: (reminder: Reminder, course: Course)?
     @State private var selectedTime = Date()
     
     @Environment(\.dismiss) private var dismiss
@@ -35,11 +36,11 @@ struct SettingsView: View {
                     }
                 }
 
-                Button {
-                    NotificationService.shared.cancelAllReminders()
-                } label: {
-                    Text("Отменить все")
-                }
+//                Button {
+//                    NotificationService.shared.cancelAllReminders()
+//                } label: {
+//                    Text("Отменить все")
+//                }
 
             }
             .navigationTitle("Настройки")
@@ -54,17 +55,67 @@ struct SettingsView: View {
             .sheet(item: $courseForReminder) { course in
                 addReminderSheet(for: course)
             }
+            .sheet(isPresented: Binding(
+                get: { reminderToEdit != nil },
+                set: { if !$0 { reminderToEdit = nil } }
+            )) {
+                if let edit = reminderToEdit {
+                    editReminderSheet(reminder: edit.reminder, course: edit.course)
+                }
+            }
         }
     }
     
+    private func editReminderSheet(reminder: Reminder, course: Course) -> some View {
+        NavigationStack {
+            DatePicker(
+                "Время напоминания",
+                selection: $selectedTime,
+                displayedComponents: .hourAndMinute
+            )
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .padding()
+            .navigationTitle("Редактирование")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Отмена") {
+                        reminderToEdit = nil
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Сохранить") {
+                        let components = Calendar.current.dateComponents([.hour, .minute], from: selectedTime)
+                        viewModel.updateReminder(
+                            reminder,
+                            hour: components.hour ?? 9,
+                            minute: components.minute ?? 0,
+                            in: course
+                        )
+                        reminderToEdit = nil
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+    
     private func reminderRow(reminder: Reminder, course: Course) -> some View {
-        HStack {
+        Button {
+            selectedTime = reminder.dateFromComponents ?? Date()
+            reminderToEdit = (reminder, course)
+        } label: {
             Label(reminder.formattedTime, systemImage: "bell.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 viewModel.deleteReminder(reminder, from: course)
             } label: {
-                Image(systemName: "trash")
+                Label("Удалить", systemImage: "trash")
             }
         }
     }

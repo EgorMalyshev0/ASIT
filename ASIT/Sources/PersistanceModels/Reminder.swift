@@ -26,5 +26,13 @@ final class Reminder {
     var formattedTime: String {
         String(format: "%02d:%02d", hour, minute)
     }
+    
+    /// Date из компонентов времени
+    var dateFromComponents: Date? {
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = minute
+        return Calendar.current.date(from: components)
+    }
 }
 

@@ -25,6 +25,7 @@ protocol CourseManagementServiceProtocol: AnyObject {
     
     // MARK: - Reminder CRUD
     func addReminder(_ reminder: Reminder, to course: Course)
+    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course)
     func deleteReminder(_ reminder: Reminder, from course: Course)
     func handleTakenActionFromPush(courseId: UUID, date: Date)
 }

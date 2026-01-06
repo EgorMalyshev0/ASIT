@@ -96,6 +96,17 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         }
     }
     
+    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course) {
+        NotificationService.shared.cancelReminder(reminder)
+        reminder.hour = hour
+        reminder.minute = minute
+        save()
+        fetchCourses()
+        Task {
+            await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+        }
+    }
+    
     func deleteReminder(_ reminder: Reminder, from course: Course) {
         if let index = course.reminders.firstIndex(where: { $0.id == reminder.id }) {
             course.reminders.remove(at: index)
@@ -181,6 +192,11 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     
     func addReminder(_ reminder: Reminder, to course: Course) {
         course.reminders.append(reminder)
+    }
+    
+    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course) {
+        reminder.hour = hour
+        reminder.minute = minute
     }
     
     func deleteReminder(_ reminder: Reminder, from course: Course) {
