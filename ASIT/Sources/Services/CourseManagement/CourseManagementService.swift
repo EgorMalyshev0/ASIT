@@ -68,6 +68,12 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         course.intakes.append(intake)
         save()
         fetchCourses()
+        
+        // Удаляем доставленные уведомления и обновляем badge
+        NotificationService.shared.removeDeliveredNotifications(for: course)
+        Task { @MainActor in
+            await NotificationService.shared.updateBadgeCount()
+        }
     }
     
     func updateIntake(_ intake: Intake) {

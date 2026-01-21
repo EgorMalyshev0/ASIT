@@ -107,6 +107,8 @@ final class NotificationService {
         content.body = "Пора принять лекарство"
         content.sound = .default
         content.categoryIdentifier = Self.categoryIdentifier
+        // Badge будет инкрементироваться системой
+        content.badge = 1
         
         var userInfo: [String: Any] = [
             "courseId": courseId.uuidString,
@@ -139,6 +141,29 @@ final class NotificationService {
     func cancelAllReminders() {
         notificationCenter.removeAllPendingNotificationRequests()
         notificationCenter.removeAllDeliveredNotifications()
+    }
+    
+    // MARK: - Badge
+    
+    /// Обновляет badge на основе доставленных уведомлений
+    @MainActor
+    func updateBadgeCount() async {
+        let delivered = await notificationCenter.deliveredNotifications()
+        try? await UNUserNotificationCenter.current().setBadgeCount(delivered.count)
+    }
+    
+    /// Сбрасывает badge
+    @MainActor
+    func clearBadge() {
+        UNUserNotificationCenter.current().setBadgeCount(0)
+    }
+    
+    // MARK: - Remove Delivered
+    
+    /// Удаляет доставленные уведомления для курса (при приёме)
+    func removeDeliveredNotifications(for course: Course) {
+        let identifiers = course.reminders.map { $0.id.uuidString }
+        notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 }
 
