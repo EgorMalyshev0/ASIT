@@ -12,11 +12,13 @@ struct Dosage: Codable, Hashable {
     let amount: Int
     
     var displayName: String {
+        let key: String
         switch type {
         case .press:
-            return "\(amount) нажатий"
+            key = "dosage.press"
         case .tablet:
-            return "\(amount) таблеток"
+            key = "dosage.tablet"
         }
+        return String(format: NSLocalizedString(key, comment: ""), amount)
     }
 }
