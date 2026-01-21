@@ -14,9 +14,12 @@ struct SettingsView: View {
     @State private var selectedTime = Date()
     
     @Environment(\.dismiss) private var dismiss
-    
-    init(courseService: CourseManagementServiceProtocol) {
+
+    let onAddNewCourse: () -> Void
+
+    init(courseService: CourseManagementServiceProtocol, onAddNewCourse: @escaping () -> Void) {
         _viewModel = State(initialValue: SettingsViewModel(courseService: courseService))
+        self.onAddNewCourse = onAddNewCourse
     }
     
     var body: some View {
@@ -34,6 +37,10 @@ struct SettingsView: View {
                             }
                         }
                     }
+                }
+
+                Button(action: onAddNewCourse) {
+                    Text("Добавить новый курс")
                 }
 
 //                Button {
@@ -156,5 +163,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView(courseService: MockCourseManagementService(withMockData: true))
+    SettingsView(courseService: MockCourseManagementService(withMockData: true), onAddNewCourse: {})
 }

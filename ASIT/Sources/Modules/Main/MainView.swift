@@ -43,13 +43,6 @@ struct MainView: View {
                             Image(systemName: "calendar")
                         }
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            isAddCoursePresented = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                    }
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             isSettingsPresented = true
@@ -74,7 +67,10 @@ struct MainView: View {
             AddCourseView(courseService: courseService)
         }
         .sheet(isPresented: $isSettingsPresented) {
-            SettingsView(courseService: courseService)
+            SettingsView(courseService: courseService) {
+                isSettingsPresented = false
+                isAddCoursePresented = true
+            }
         }
     }
     
