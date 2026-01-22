@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @State private var viewModel: SettingsViewModel
     @State private var courseForReminder: Course?
     @State private var reminderToEdit: (reminder: Reminder, course: Course)?
     @State private var selectedTime = Date()
+    @State private var showingImporter = false
+    @State private var importError: String?
     
     @Environment(\.dismiss) private var dismiss
 
@@ -36,19 +39,30 @@ struct SettingsView: View {
                                 Label("Добавить напоминание", systemImage: "bell.badge.plus")
                             }
                         }
+                        
+                        ShareLink(
+                            item: CourseFileExport(course: course),
+                            preview: SharePreview(
+                                viewModel.medicationName(for: course),
+                                image: Image(systemName: "doc.fill")
+                            )
+                        ) {
+                            Label("Экспортировать курс", systemImage: "square.and.arrow.up")
+                        }
                     }
                 }
 
-                Button(action: onAddNewCourse) {
-                    Text("Добавить новый курс")
+                Section {
+                    Button(action: onAddNewCourse) {
+                        Label("Добавить новый курс", systemImage: "plus.circle")
+                    }
+                    
+                    Button {
+                        showingImporter = true
+                    } label: {
+                        Label("Импортировать курс", systemImage: "square.and.arrow.down")
+                    }
                 }
-
-//                Button {
-//                    NotificationService.shared.cancelAllReminders()
-//                } label: {
-//                    Text("Отменить все")
-//                }
-
             }
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)
@@ -69,6 +83,31 @@ struct SettingsView: View {
                 if let edit = reminderToEdit {
                     editReminderSheet(reminder: edit.reminder, course: edit.course)
                 }
+            }
+            .fileImporter(
+                isPresented: $showingImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    do {
+                        try viewModel.importCourse(from: url)
+                    } catch {
+                        importError = error.localizedDescription
+                    }
+                case .failure(let error):
+                    importError = error.localizedDescription
+                }
+            }
+            .alert("Ошибка импорта", isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )) {
+                Button("OK") { importError = nil }
+            } message: {
+                Text(importError ?? "")
             }
         }
     }

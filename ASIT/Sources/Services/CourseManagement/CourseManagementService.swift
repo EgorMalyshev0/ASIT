@@ -144,6 +144,35 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
         addIntake(intake, to: course)
     }
+    
+    // MARK: - Import/Export
+    
+    func importCourse(from dto: CourseExportDTO) {
+        let course = dto.course.toCourse()
+        modelContext.insert(course)
+        
+        // Добавляем интейки
+        for intakeDTO in dto.course.intakes {
+            let intake = intakeDTO.toIntake()
+            course.intakes.append(intake)
+        }
+        
+        // Добавляем напоминания
+        for reminderDTO in dto.course.reminders {
+            let reminder = reminderDTO.toReminder()
+            course.reminders.append(reminder)
+        }
+        
+        save()
+        fetchCourses()
+        
+        // Планируем напоминания
+        for reminder in course.reminders {
+            Task {
+                await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+            }
+        }
+    }
 
     // MARK: - Private
     
@@ -212,6 +241,17 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     }
 
     func handleTakenActionFromPush(courseId: UUID, date: Date) {}
+    
+    func importCourse(from dto: CourseExportDTO) {
+        let course = dto.course.toCourse()
+        for intakeDTO in dto.course.intakes {
+            course.intakes.append(intakeDTO.toIntake())
+        }
+        for reminderDTO in dto.course.reminders {
+            course.reminders.append(reminderDTO.toReminder())
+        }
+        courses.append(course)
+    }
 
     static var mockCourses: [Course] {
         // Курс с приёмами (будет показывать "Подтвердить приём")

@@ -39,6 +39,20 @@ final class SettingsViewModel {
         courseService.updateReminder(reminder, hour: hour, minute: minute, in: course)
     }
     
+    func importCourse(from url: URL) throws {
+        guard url.startAccessingSecurityScopedResource() else {
+            throw CourseExportError.decodingFailed
+        }
+
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+
+        let data = try Data(contentsOf: url)
+        let dto = try CourseExportService.importCourse(from: data)
+        courseService.importCourse(from: dto)
+    }
+    
     private func setupBindings() {
         courseService.coursesPublisher
             .receive(on: DispatchQueue.main)

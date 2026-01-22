@@ -28,4 +28,7 @@ protocol CourseManagementServiceProtocol: AnyObject {
     func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course)
     func deleteReminder(_ reminder: Reminder, from course: Course)
     func handleTakenActionFromPush(courseId: UUID, date: Date)
+    
+    // MARK: - Import/Export
+    func importCourse(from dto: CourseExportDTO)
 }

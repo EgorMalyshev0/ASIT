@@ -9,7 +9,7 @@ import Foundation
 import SwiftData
 
 @Model
-final class Course {
+final class Course: Sendable {
     @Attribute(.unique) var id: UUID
     /// ID препарата из JSON-каталога
     var medicationId: String
