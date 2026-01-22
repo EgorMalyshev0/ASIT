@@ -39,6 +39,10 @@ final class SettingsViewModel {
         courseService.updateReminder(reminder, hour: hour, minute: minute, in: course)
     }
     
+    func deleteCourse(_ course: Course) {
+        courseService.deleteCourse(course)
+    }
+    
     func importCourse(from url: URL) throws {
         guard url.startAccessingSecurityScopedResource() else {
             throw CourseExportError.decodingFailed

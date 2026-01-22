@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var selectedTime = Date()
     @State private var showingImporter = false
     @State private var importError: String?
+    @State private var courseToDelete: Course?
     
     @Environment(\.dismiss) private var dismiss
 
@@ -36,7 +37,7 @@ struct SettingsView: View {
                             Button {
                                 courseForReminder = course
                             } label: {
-                                Label("Добавить напоминание", systemImage: "bell.badge.plus")
+                                Label("Добавить напоминание", systemImage: "bell")
                             }
                         }
                         
@@ -48,6 +49,12 @@ struct SettingsView: View {
                             )
                         ) {
                             Label("Экспортировать курс", systemImage: "square.and.arrow.up")
+                        }
+                        
+                        Button(role: .destructive) {
+                            courseToDelete = course
+                        } label: {
+                            Label("Удалить курс", systemImage: "trash")
                         }
                     }
                 }
@@ -108,6 +115,26 @@ struct SettingsView: View {
                 Button("OK") { importError = nil }
             } message: {
                 Text(importError ?? "")
+            }
+            .confirmationDialog(
+                "Удалить курс?",
+                isPresented: Binding(
+                    get: { courseToDelete != nil },
+                    set: { if !$0 { courseToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Удалить", role: .destructive) {
+                    if let course = courseToDelete {
+                        viewModel.deleteCourse(course)
+                    }
+                    courseToDelete = nil
+                }
+                Button("Отмена", role: .cancel) {
+                    courseToDelete = nil
+                }
+            } message: {
+                Text("Все данные курса, включая историю приёмов, будут удалены.")
             }
         }
     }
