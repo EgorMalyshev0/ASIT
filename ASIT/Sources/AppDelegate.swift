@@ -24,14 +24,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         
         return true
     }
-    
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        // Обновляем badge при открытии приложения
-        Task {
-            await NotificationService.shared.updateBadgeCount()
-        }
-    }
-    
+
     // MARK: - UNUserNotificationCenterDelegate
     
     /// Показывать уведомления даже когда приложение открыто
