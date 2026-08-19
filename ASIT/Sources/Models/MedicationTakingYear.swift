@@ -29,3 +29,7 @@ enum MedicationTakingYear: Int, Codable, CaseIterable {
         }
     }
 }
+
+extension MedicationTakingYear: Identifiable {
+    var id: Int { rawValue }
+}

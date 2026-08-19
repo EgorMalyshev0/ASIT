@@ -18,17 +18,33 @@ struct AddCourseView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Picker("Выберите препарат", selection: $viewModel.selectedMedicationId) {
-                    ForEach(viewModel.availableMedications, id: \.id) { medication in
-                        Text(medication.name.ru)
-                            .tag(medication.id)
+                NavigationLink {
+                    SelectionList(
+                        title: "Препарат",
+                        items: viewModel.availableMedications,
+                        selection: $viewModel.selectedMedicationId
+                    ) {
+                        $0.name.ru
+                    }
+                } label: {
+                    LabeledContent("Препарат") {
+                        let medication = viewModel.availableMedications.first(where: { $0.id == viewModel.selectedMedicationId })
+                        Text(medication?.name.ru ?? "")
                     }
                 }
 
-                Picker("Выберите год приёма", selection: $viewModel.selectedYear) {
-                    ForEach(viewModel.takingYears, id: \.rawValue) { takingYear in
-                        Text(takingYear.title)
-                            .tag(takingYear.rawValue)
+                NavigationLink {
+                    SelectionList(
+                        title: "Год приёма",
+                        items: viewModel.takingYears,
+                        selection: $viewModel.selectedYear
+                    ) {
+                        $0.title
+                    }
+                } label: {
+                    LabeledContent("Год приёма") {
+                        let selectedYear = viewModel.takingYears.first(where: { $0.rawValue == viewModel.selectedYear })
+                        Text(selectedYear?.title ?? "")
                     }
                 }
 
