@@ -13,9 +13,9 @@ final class IntakeAddingViewModel {
     let date: Date
     
     private(set) var medication: Medication?
-    private(set) var availablePackages: [Medication.Package] = []
+    private(set) var availableVariants: [Medication.Variant] = []
     
-    var selectedPackageId: String? {
+    var selectedVariantId: String? {
         didSet {
             updateAvailableDosages()
         }
@@ -35,7 +35,7 @@ final class IntakeAddingViewModel {
     }
     
     var canSave: Bool {
-        selectedPackageId != nil && selectedDosage != nil
+        selectedVariantId != nil && selectedDosage != nil
     }
     
     private let courseService: CourseManagementServiceProtocol
@@ -49,7 +49,7 @@ final class IntakeAddingViewModel {
     }
     
     func save() {
-        guard let selectedPackageId, let selectedDosage else { return }
+        guard let selectedVariantId, let selectedDosage else { return }
         
         // Если редактируем - удаляем старый приём
         if let existingIntake = existingIntake {
@@ -59,7 +59,7 @@ final class IntakeAddingViewModel {
         let intake = Intake(
             date: date,
             medicationId: course.medicationId,
-            packageId: selectedPackageId,
+            variantId: selectedVariantId,
             dosage: selectedDosage,
             comment: nil
         )
@@ -82,10 +82,10 @@ final class IntakeAddingViewModel {
             let data = try Data(contentsOf: url)
             let medications = try JSONDecoder().decode([Medication].self, from: data)
             medication = medications.first { $0.id == course.medicationId }
-            availablePackages = medication?.packages ?? []
+            availableVariants = medication?.variants ?? []
             
-            if let firstPackage = availablePackages.first {
-                selectedPackageId = firstPackage.id
+            if let firstVariant = availableVariants.first {
+                selectedVariantId = firstVariant.id
             }
         } catch {
             print("Failed to load medication: \(error)")
@@ -97,9 +97,9 @@ final class IntakeAddingViewModel {
         let targetIntake = existingIntake ?? course.lastIntake
         guard let targetIntake = targetIntake else { return }
         
-        // Установить упаковку
-        if availablePackages.contains(where: { $0.id == targetIntake.packageId }) {
-            selectedPackageId = targetIntake.packageId
+        // Установить вариант
+        if availableVariants.contains(where: { $0.id == targetIntake.variantId }) {
+            selectedVariantId = targetIntake.variantId
         }
         
         // Установить дозировку
@@ -109,14 +109,14 @@ final class IntakeAddingViewModel {
     }
     
     private func updateAvailableDosages() {
-        guard let selectedPackageId,
-              let package = availablePackages.first(where: { $0.id == selectedPackageId }) else {
+        guard let selectedVariantId,
+              let variant = availableVariants.first(where: { $0.id == selectedVariantId }) else {
             availableDosages = []
             selectedDosage = nil
             return
         }
         
-        availableDosages = package.dosages
+        availableDosages = variant.dosages
         
         // Попробовать сохранить выбранную дозировку если она есть в новом списке
         if let current = selectedDosage, availableDosages.contains(current) {

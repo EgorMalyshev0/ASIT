@@ -28,12 +28,12 @@ struct IntakeCardView: View {
         course.lastIntake != nil
     }
     
-    /// Упаковка из приёма на эту дату или из последнего приёма
-    private var packageName: String? {
+    /// Вариант из приёма на эту дату или из последнего приёма
+    private var variantName: String? {
         let targetIntake = intakeForDate ?? course.lastIntake
         guard let targetIntake = targetIntake,
               let medication = medication else { return nil }
-        return medication.packages.first { $0.id == targetIntake.packageId }?.name.ru
+        return medication.variants.first { $0.id == targetIntake.variantId }?.name.ru
     }
     
     /// Дозировка из приёма на эту дату или из последнего приёма
@@ -49,8 +49,8 @@ struct IntakeCardView: View {
                     .foregroundStyle(isIntakeDone ? .secondary : .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                if let packageName = packageName {
-                    Text(packageName)
+                if let variantName = variantName {
+                    Text(variantName)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -141,10 +141,12 @@ struct IntakeCardView: View {
             id: "staloral_birch_pollen",
             name: LocalizedName(ru: "Сталораль Аллерген пыльцы берёзы"),
             therapyType: .slit,
-            packages: [
-                Medication.Package(
-                    id: "bottle-10-ir",
-                    name: LocalizedName(ru: "Флакон с синей крышкой"),
+            variants: [
+                Medication.Variant(
+                    id: "staloral_birch_pollen_10_ir_ml",
+                    name: LocalizedName(ru: "Флакон с синей крышкой — 10 ИР/мл"),
+                    shortName: LocalizedName(ru: "10 ИР/мл"),
+                    administration: Medication.Administration(type: .press),
                     dosages: [Dosage(type: .press, amount: 3)]
                 )
             ]

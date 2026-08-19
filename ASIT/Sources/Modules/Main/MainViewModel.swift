@@ -70,7 +70,7 @@ final class MainViewModel {
         let intake = Intake(
             date: date,
             medicationId: course.medicationId,
-            packageId: lastIntake.packageId,
+            variantId: lastIntake.variantId,
             dosage: lastIntake.dosage,
             comment: nil
         )

@@ -1,124 +1,158 @@
 [
-    {
-        "id": "staloral_birch_pollen",
-        "name": {
-            "ru": "Сталораль Аллерген пыльцы берёзы"
-        },
-        "therapyType": "slit",
-        "packages": [
-            {
-                "id": "bottle-10-ir",
-                "name": {
-                    "ru": "Флакон с синей крышкой"
-                },
-                "dosages": [
-                    {
-                        "type": "press",
-                        "amount": 1
-                    },
-                    {
-                        "type": "press",
-                        "amount": 2
-                    },
-                    {
-                        "type": "press",
-                        "amount": 3
-                    },
-                    {
-                        "type": "press",
-                        "amount": 4
-                    }
-                ]
-            },
-            {
-                "id": "bottle-300-ir",
-                "name": {
-                    "ru": "Флакон с фиолетовой крышкой"
-                },
-                "dosages": [
-                    {
-                        "type": "press",
-                        "amount": 1
-                    },
-                    {
-                        "type": "press",
-                        "amount": 2
-                    },
-                    {
-                        "type": "press",
-                        "amount": 3
-                    },
-                    {
-                        "type": "press",
-                        "amount": 4
-                    },
-                    {
-                        "type": "press",
-                        "amount": 5
-                    }
-                ]
-            }
-        ]
+  {
+    "id": "staloral_birch_pollen",
+    "name": {
+      "ru": "Сталораль «Аллерген пыльцы берёзы»",
+      "en": "Staloral Birch Pollen Allergen"
     },
-    {
-        "id": "staloral_mites",
+    "therapyType": "slit",
+    "variants": [
+      {
+        "id": "staloral_birch_pollen_10_ir_ml",
         "name": {
-            "ru": "Сталораль Аллерген клещей"
+          "ru": "Флакон с синей крышкой — 10 ИР/мл",
+          "en": "Bottle with blue cap — 10 IR/ml"
         },
-        "therapyType": "slit",
-        "packages": [
-            {
-                "id": "bottle-10-ir",
-                "name": {
-                    "ru": "Флакон с синей крышкой"
-                },
-                "dosages": [
-                    {
-                        "type": "press",
-                        "amount": 1
-                    },
-                    {
-                        "type": "press",
-                        "amount": 2
-                    },
-                    {
-                        "type": "press",
-                        "amount": 3
-                    },
-                    {
-                        "type": "press",
-                        "amount": 4
-                    }
-                ]
-            },
-            {
-                "id": "bottle-300-ir",
-                "name": {
-                    "ru": "Флакон с фиолетовой крышкой"
-                },
-                "dosages": [
-                    {
-                        "type": "press",
-                        "amount": 1
-                    },
-                    {
-                        "type": "press",
-                        "amount": 2
-                    },
-                    {
-                        "type": "press",
-                        "amount": 3
-                    },
-                    {
-                        "type": "press",
-                        "amount": 4
-                    },
-                    {
-                        "type": "press",
-                        "amount": 5
-                    }
-                ]
-            }
+        "shortName": {
+          "ru": "10 ИР/мл",
+          "en": "10 IR/ml"
+        },
+        "administration": {
+          "type": "press"
+        },
+        "dosages": [
+          { "amount": 1 },
+          { "amount": 2 },
+          { "amount": 3 },
+          { "amount": 4 },
+          { "amount": 5 }
         ]
-    }
+      },
+      {
+        "id": "staloral_birch_pollen_300_ir_ml",
+        "name": {
+          "ru": "Флакон с фиолетовой крышкой — 300 ИР/мл",
+          "en": "Bottle with purple cap — 300 IR/ml"
+        },
+        "shortName": {
+          "ru": "300 ИР/мл",
+          "en": "300 IR/ml"
+        },
+        "administration": {
+          "type": "press"
+        },
+        "dosages": [
+          { "amount": 1 },
+          { "amount": 2 },
+          { "amount": 3 },
+          { "amount": 4 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "staloral_mites",
+    "name": {
+      "ru": "Сталораль «Аллерген клещей»",
+      "en": "Staloral Mites Allergen"
+    },
+    "therapyType": "slit",
+    "variants": [
+      {
+        "id": "staloral_mites_10_ir_ml",
+        "name": {
+          "ru": "Флакон с синей крышкой — 10 ИР/мл",
+          "en": "Bottle with blue cap — 10 IR/ml"
+        },
+        "shortName": {
+          "ru": "10 ИР/мл",
+          "en": "10 IR/ml"
+        },
+        "administration": {
+          "type": "press"
+        },
+        "dosages": [
+          { "amount": 1 },
+          { "amount": 2 },
+          { "amount": 3 },
+          { "amount": 4 },
+          { "amount": 5 },
+          { "amount": 6 },
+          { "amount": 7 },
+          { "amount": 8 },
+          { "amount": 9 },
+          { "amount": 10 }
+        ]
+      },
+      {
+        "id": "staloral_mites_300_ir_ml",
+        "name": {
+          "ru": "Флакон с фиолетовой крышкой — 300 ИР/мл",
+          "en": "Bottle with purple cap — 300 IR/ml"
+        },
+        "shortName": {
+          "ru": "300 ИР/мл",
+          "en": "300 IR/ml"
+        },
+        "administration": {
+          "type": "press"
+        },
+        "dosages": [
+          { "amount": 1 },
+          { "amount": 2 },
+          { "amount": 3 },
+          { "amount": 4 },
+          { "amount": 5 },
+          { "amount": 6 },
+          { "amount": 7 },
+          { "amount": 8 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "oralair",
+    "name": {
+      "ru": "Оралейр",
+      "en": "Oralair"
+    },
+    "therapyType": "slit",
+    "variants": [
+      {
+        "id": "oralair_100_ir",
+        "name": {
+          "ru": "Маленький блистер — 100 ИР",
+          "en": "Small blister — 100 IR"
+        },
+        "shortName": {
+          "ru": "100 ИР",
+          "en": "100 IR"
+        },
+        "administration": {
+          "type": "tablet"
+        },
+        "dosages": [
+          { "amount": 1 },
+          { "amount": 2 }
+        ]
+      },
+      {
+        "id": "oralair_300_ir",
+        "name": {
+          "ru": "Большой блистер — 300 ИР",
+          "en": "Large blister — 300 IR"
+        },
+        "shortName": {
+          "ru": "300 ИР",
+          "en": "300 IR"
+        },
+        "administration": {
+          "type": "tablet"
+        },
+        "dosages": [
+          { "amount": 1 }
+        ]
+      }
+    ]
+  }
 ]

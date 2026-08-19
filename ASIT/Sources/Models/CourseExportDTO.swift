@@ -67,14 +67,14 @@ struct CourseDTO: Codable {
 struct IntakeDTO: Codable {
     let date: Date
     let medicationId: String
-    let packageId: String
+    let variantId: String
     let dosage: Dosage
     let comment: String?
     
     init(intake: Intake) {
         self.date = intake.date
         self.medicationId = intake.medicationId
-        self.packageId = intake.packageId
+        self.variantId = intake.variantId
         self.dosage = intake.dosage
         self.comment = intake.comment
     }
@@ -83,7 +83,7 @@ struct IntakeDTO: Codable {
         Intake(
             date: date,
             medicationId: medicationId,
-            packageId: packageId,
+            variantId: variantId,
             dosage: dosage,
             comment: comment
         )
@@ -103,4 +103,3 @@ struct ReminderDTO: Codable {
         Reminder(hour: hour, minute: minute)
     }
 }
-

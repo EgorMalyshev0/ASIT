@@ -19,10 +19,10 @@ struct IntakeAddingView: View {
         NavigationStack {
             Form {
                 Section(viewModel.medication?.name.ru ?? "") {
-                    Picker("Упаковка", selection: $viewModel.selectedPackageId) {
-                        ForEach(viewModel.availablePackages, id: \.id) { package in
-                            Text(package.name.ru)
-                                .tag(package.id as String?)
+                    Picker("Вариант", selection: $viewModel.selectedVariantId) {
+                        ForEach(viewModel.availableVariants, id: \.id) { variant in
+                            Text(variant.name.ru)
+                                .tag(variant.id as String?)
                         }
                     }
 

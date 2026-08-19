@@ -14,8 +14,8 @@ final class Intake {
     var date: Date
     /// ID препарата (снапшот)
     var medicationId: String
-    /// ID упаковки
-    var packageId: String
+    /// ID варианта препарата
+    var variantId: String
     /// Дозировка
     var dosage: Dosage
     var comment: String?
@@ -23,14 +23,14 @@ final class Intake {
     init(
         date: Date,
         medicationId: String,
-        packageId: String,
+        variantId: String,
         dosage: Dosage,
         comment: String?
     ) {
         self.id = UUID()
         self.date = date
         self.medicationId = medicationId
-        self.packageId = packageId
+        self.variantId = variantId
         self.dosage = dosage
         self.comment = comment
     }

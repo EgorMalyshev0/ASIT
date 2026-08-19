@@ -10,6 +10,11 @@ import Foundation
 struct Dosage: Codable, Hashable {
     let type: DosageType
     let amount: Int
+
+    init(type: DosageType, amount: Int) {
+        self.type = type
+        self.amount = amount
+    }
     
     var displayName: String {
         let key: String

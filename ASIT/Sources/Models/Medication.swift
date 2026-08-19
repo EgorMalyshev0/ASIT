@@ -11,5 +11,5 @@ struct Medication: Codable {
     let id: String
     let name: LocalizedName
     let therapyType: TherapyType
-    var packages: [Package]
+    var variants: [Variant]
 }

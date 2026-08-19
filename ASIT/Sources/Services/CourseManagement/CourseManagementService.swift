@@ -137,7 +137,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         let intake = Intake(
             date: date,
             medicationId: course.medicationId,
-            packageId: lastIntake.packageId,
+            variantId: lastIntake.variantId,
             dosage: lastIntake.dosage,
             comment: nil
         )
@@ -265,7 +265,7 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
         let yesterdayIntake = Intake(
             date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
             medicationId: "staloral_birch_pollen",
-            packageId: "bottle-10-ir",
+            variantId: "staloral_birch_pollen_10_ir_ml",
             dosage: Dosage(type: .press, amount: 3),
             comment: nil
         )
@@ -282,4 +282,3 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
         return [courseWithIntakes, courseWithoutIntakes]
     }
 }
-
