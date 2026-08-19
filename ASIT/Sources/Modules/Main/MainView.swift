@@ -116,9 +116,9 @@ struct MainView: View {
                         )
                     }
                 }
+                .padding()
             }
         }
-        .padding()
     }
 
     private var emptyStateView: some View {
