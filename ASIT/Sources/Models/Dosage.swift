@@ -27,3 +27,9 @@ struct Dosage: Codable, Hashable {
         return String(format: NSLocalizedString(key, comment: ""), amount)
     }
 }
+
+extension Dosage: Identifiable {
+    var id: String {
+        "\(type.rawValue)_\(amount)"
+    }
+}

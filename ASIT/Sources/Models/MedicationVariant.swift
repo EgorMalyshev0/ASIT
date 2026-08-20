@@ -8,7 +8,7 @@
 import Foundation
 
 extension Medication {
-    struct Variant: Codable {
+    struct Variant: Codable, Identifiable {
         let id: String
         let name: LocalizedName
         let shortName: LocalizedName

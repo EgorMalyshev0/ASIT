@@ -19,48 +19,54 @@ struct IntakeAddingView: View {
         NavigationStack {
             Form {
                 Section(viewModel.medication?.name.ru ?? "") {
-                    Picker("Вариант", selection: $viewModel.selectedVariantId) {
-                        ForEach(viewModel.availableVariants, id: \.id) { variant in
-                            Text(variant.name.ru)
-                                .tag(variant.id as String?)
+                    NavigationLink {
+                        SelectionList(
+                            title: "Вариант",
+                            items: viewModel.availableVariants,
+                            selection: $viewModel.selectedVariantId
+                        ) {
+                            $0.name.ru
+                        }
+                    } label: {
+                        LabeledContent("Вариант") {
+                            let variant = viewModel.availableVariants.first(where: { $0.id == viewModel.selectedVariantId })
+                            Text(variant?.name.ru ?? "")
                         }
                     }
 
-                    Picker("Дозировка", selection: $viewModel.selectedDosage) {
-                        ForEach(viewModel.availableDosages, id: \.self) { dosage in
-                            Text(dosage.displayName)
-                                .tag(dosage as Dosage?)
+                    NavigationLink {
+                        SelectionList(
+                            title: "Дозировка",
+                            items: viewModel.availableDosages,
+                            selection: Binding(
+                                get: { viewModel.selectedDosage?.id },
+                                set: { id in
+                                    viewModel.selectedDosage = viewModel.availableDosages.first(where: { $0.id == id })
+                                }
+                            )
+                        ) {
+                            $0.displayName
+                        }
+                    } label: {
+                        LabeledContent("Дозировка") {
+                            Text(viewModel.selectedDosage?.displayName ?? "")
                         }
                     }
                 }
 
                 Section {
-                    Button {
+                    Button(viewModel.isEditing ? "Изменить" : "Добавить") {
                         viewModel.save()
                         dismiss()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Text(viewModel.isEditing ? "Изменить" : "Добавить")
-                                .fontWeight(.semibold)
-                            Spacer()
-                        }
                     }
                     .disabled(!viewModel.canSave)
 
                     if viewModel.isEditing {
-                        Button {
+                        Button("Удалить") {
                             viewModel.delete()
                             dismiss()
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text("Удалить")
-                                    .fontWeight(.semibold)
-                                Spacer()
-                            }
                         }
-                        .tint(.red)
+                        .foregroundStyle(.red)
                     }
                 }
             }
