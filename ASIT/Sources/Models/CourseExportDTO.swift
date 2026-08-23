@@ -93,13 +93,15 @@ struct IntakeDTO: Codable {
 struct ReminderDTO: Codable {
     let hour: Int
     let minute: Int
-    
+    let isEnabled: Bool
+
     init(reminder: Reminder) {
         self.hour = reminder.hour
         self.minute = reminder.minute
+        self.isEnabled = reminder.isEnabled
     }
     
     func toReminder() -> Reminder {
-        Reminder(hour: hour, minute: minute)
+        Reminder(hour: hour, minute: minute, isEnabled: isEnabled)
     }
 }

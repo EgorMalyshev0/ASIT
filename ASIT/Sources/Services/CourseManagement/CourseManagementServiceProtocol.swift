@@ -24,11 +24,10 @@ protocol CourseManagementServiceProtocol: AnyObject {
     func deleteIntake(_ intake: Intake, from course: Course)
     
     // MARK: - Reminder CRUD
-    func addReminder(_ reminder: Reminder, to course: Course)
-    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course)
-    func deleteReminder(_ reminder: Reminder, from course: Course)
     func handleTakenActionFromPush(courseId: UUID, date: Date)
-    
+    func setReminderEnabled(_ isEnabled: Bool, course: Course)
+    func updateReminderTime(_ newTime: Date, course: Course)
+
     // MARK: - Import/Export
     func importCourse(from dto: CourseExportDTO)
 }

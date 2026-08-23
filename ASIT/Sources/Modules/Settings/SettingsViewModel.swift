@@ -26,23 +26,6 @@ final class SettingsViewModel {
         medications.first { $0.id == course.medicationId }?.name.ru ?? course.medicationId
     }
     
-    func addReminder(hour: Int, minute: Int, to course: Course) {
-        let reminder = Reminder(hour: hour, minute: minute)
-        courseService.addReminder(reminder, to: course)
-    }
-    
-    func deleteReminder(_ reminder: Reminder, from course: Course) {
-        courseService.deleteReminder(reminder, from: course)
-    }
-    
-    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course) {
-        courseService.updateReminder(reminder, hour: hour, minute: minute, in: course)
-    }
-    
-    func deleteCourse(_ course: Course) {
-        courseService.deleteCourse(course)
-    }
-    
     func importCourse(from url: URL) throws {
         guard url.startAccessingSecurityScopedResource() else {
             throw CourseExportError.decodingFailed
@@ -56,7 +39,11 @@ final class SettingsViewModel {
         let dto = try CourseExportService.importCourse(from: data)
         courseService.importCourse(from: dto)
     }
-    
+
+    func makeCourseSettingsViewModel(for course: Course) -> CourseSettingsViewModel {
+        CourseSettingsViewModel(course: course, courseService: courseService)
+    }
+
     private func setupBindings() {
         courseService.coursesPublisher
             .receive(on: DispatchQueue.main)

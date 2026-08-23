@@ -15,11 +15,13 @@ final class Reminder {
     var hour: Int
     /// Минута напоминания (0-59)
     var minute: Int
-    
-    init(hour: Int, minute: Int) {
+    var isEnabled: Bool
+
+    init(hour: Int, minute: Int, isEnabled: Bool) {
         self.id = UUID()
         self.hour = hour
         self.minute = minute
+        self.isEnabled = isEnabled
     }
     
     /// Форматированное время для отображения
@@ -29,10 +31,11 @@ final class Reminder {
     
     /// Date из компонентов времени
     var dateFromComponents: Date? {
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
-        return Calendar.current.date(from: components)
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date.now)
     }
+
+    static let `default` = Reminder(hour: defaultHour, minute: defaultMinute, isEnabled: false)
+    static let defaultHour: Int = 10
+    static let defaultMinute: Int = 0
 }
 

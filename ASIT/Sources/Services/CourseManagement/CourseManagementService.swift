@@ -36,6 +36,8 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     // MARK: - Course CRUD
     
     func addCourse(_ course: Course) {
+        // сразу кладем дефолтный выключенный ремайндер
+        course.reminders = [Reminder.default]
         modelContext.insert(course)
         save()
         fetchCourses()
@@ -92,35 +94,38 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     }
     
     // MARK: - Reminder CRUD
-    
-    func addReminder(_ reminder: Reminder, to course: Course) {
-        course.reminders.append(reminder)
+
+    func setReminderEnabled(_ isEnabled: Bool, course: Course) {
+        let reminder = course.reminders.first ?? Reminder.default
+        reminder.isEnabled = isEnabled
+        course.reminders = [reminder]
         save()
         fetchCourses()
+
+        if isEnabled {
+            Task {
+                await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+            }
+        } else {
+            NotificationService.shared.cancelReminder(reminder)
+        }
+    }
+
+    func updateReminderTime(_ newTime: Date, course: Course) {
+        let reminder = course.reminders.first ?? Reminder.default
+        let components = Calendar.current.dateComponents([.hour, .minute], from: newTime)
+
+        reminder.hour = components.hour ?? Reminder.defaultHour
+        reminder.minute = components.minute ?? Reminder.defaultMinute
+        course.reminders = [reminder]
+        save()
+        fetchCourses()
+
+        NotificationService.shared.cancelReminder(reminder)
+
         Task {
             await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
         }
-    }
-    
-    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course) {
-        NotificationService.shared.cancelReminder(reminder)
-        reminder.hour = hour
-        reminder.minute = minute
-        save()
-        fetchCourses()
-        Task {
-            await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
-        }
-    }
-    
-    func deleteReminder(_ reminder: Reminder, from course: Course) {
-        if let index = course.reminders.firstIndex(where: { $0.id == reminder.id }) {
-            course.reminders.remove(at: index)
-        }
-        modelContext.delete(reminder)
-        save()
-        fetchCourses()
-        NotificationService.shared.cancelReminder(reminder)
     }
 
     func handleTakenActionFromPush(courseId: UUID, date: Date) {
@@ -188,7 +193,6 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 // MARK: - Mock for Testing
 
 final class MockCourseManagementService: CourseManagementServiceProtocol {
-    
     @Published private(set) var courses: [Course] = []
     
     var coursesPublisher: AnyPublisher<[Course], Never> {
@@ -224,21 +228,10 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
             course.intakes.remove(at: index)
         }
     }
-    
-    func addReminder(_ reminder: Reminder, to course: Course) {
-        course.reminders.append(reminder)
-    }
-    
-    func updateReminder(_ reminder: Reminder, hour: Int, minute: Int, in course: Course) {
-        reminder.hour = hour
-        reminder.minute = minute
-    }
-    
-    func deleteReminder(_ reminder: Reminder, from course: Course) {
-        if let index = course.reminders.firstIndex(where: { $0.id == reminder.id }) {
-            course.reminders.remove(at: index)
-        }
-    }
+
+    func setReminderEnabled(_ isEnabled: Bool, course: Course) {}
+
+    func updateReminderTime(_ newTime: Date, course: Course) {}
 
     func handleTakenActionFromPush(courseId: UUID, date: Date) {}
     
