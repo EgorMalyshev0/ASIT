@@ -73,10 +73,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
         
         switch response.actionIdentifier {
-        case NotificationService.takenActionIdentifier:
+        case NotificationActionIdentifier.medicationTaken:
             serviceProvider.courseService.handleTakenActionFromPush(courseId: courseId, date: intakeDate)
 
-        case NotificationService.snoozeActionIdentifier:
+        case NotificationActionIdentifier.snoozeOneHour:
             // Откладываем напоминание на час от текущего времени.
             guard let reminderIdString = userInfo["reminderId"] as? String,
                   let reminderId = UUID(uuidString: reminderIdString) else {

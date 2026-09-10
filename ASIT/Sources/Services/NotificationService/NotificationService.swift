@@ -11,13 +11,6 @@ import UserNotifications
 final class NotificationService: NotificationServiceProtocol {
     private let notificationCenter: NotificationCenterProviding
 
-    /// Идентификатор действия "Принял"
-    static let takenActionIdentifier = "TAKEN_ACTION"
-    /// Идентификатор действия "Отложить на час"
-    static let snoozeActionIdentifier = "SNOOZE_ONE_HOUR"
-    /// Идентификатор категории уведомлений
-    static let categoryIdentifier = "MEDICATION_REMINDER"
-
     init(notificationCenter: NotificationCenterProviding = UNUserNotificationCenter.current()) {
         self.notificationCenter = notificationCenter
         setupNotificationCategory()
@@ -27,19 +20,19 @@ final class NotificationService: NotificationServiceProtocol {
 
     private func setupNotificationCategory() {
         let takenAction = UNNotificationAction(
-            identifier: Self.takenActionIdentifier,
+            identifier: NotificationActionIdentifier.medicationTaken,
             title: "Принял",
             options: []
         )
 
         let snoozeAction = UNNotificationAction(
-            identifier: Self.snoozeActionIdentifier,
+            identifier: NotificationActionIdentifier.snoozeOneHour,
             title: "Отложить на час",
             options: []
         )
 
         let category = UNNotificationCategory(
-            identifier: Self.categoryIdentifier,
+            identifier: NotificationCategoryIdentifier.medicationReminder,
             actions: [takenAction, snoozeAction],
             intentIdentifiers: [],
             options: []
@@ -113,7 +106,7 @@ final class NotificationService: NotificationServiceProtocol {
         content.title = "Напоминание"
         content.body = "Пора принять лекарство"
         content.sound = .default
-        content.categoryIdentifier = Self.categoryIdentifier
+        content.categoryIdentifier = NotificationCategoryIdentifier.medicationReminder
         // content.badge задаёт абсолютное значение бейджа на момент доставки, а не дельту —
         // системе его инкрементировать не за что. Берём текущее число уже доставленных
         // уведомлений и прибавляем это, чтобы бейдж не сбрасывался в 1 при каждом уведомлении.

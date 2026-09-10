@@ -224,11 +224,11 @@ struct NotificationServiceTests {
 
         let category = center.setCategories.first
         #expect(center.setCategories.count == 1)
-        #expect(category?.identifier == NotificationService.categoryIdentifier)
+        #expect(category?.identifier == NotificationCategoryIdentifier.medicationReminder)
         let actionIdentifiers = Set(category?.actions.map(\.identifier) ?? [])
         #expect(actionIdentifiers == [
-            NotificationService.takenActionIdentifier,
-            NotificationService.snoozeActionIdentifier
+            NotificationActionIdentifier.medicationTaken,
+            NotificationActionIdentifier.snoozeOneHour
         ])
     }
 }
