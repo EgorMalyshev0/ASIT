@@ -18,23 +18,32 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     
     let modelContainer: ModelContainer
     private let modelContext: ModelContext
+    private let notificationService: NotificationServiceProtocol
 
     /// Последняя запущенная задача планирования/отмены уведомлений
     private var reminderSchedulingTask: Task<Void, Never>?
-    
-    init() {
+
+    init(inMemory: Bool = false, notificationService: NotificationServiceProtocol) {
         let schema = Schema([Course.self, Intake.self, Reminder.self])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+
         do {
             self.modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-        
+
         self.modelContext = ModelContext(modelContainer)
+        self.notificationService = notificationService
         fetchCourses()
     }
+
+    #if DEBUG
+    /// Дожидается завершения текущей отложенной операции планирования/отмены уведомлений — используется в тестах.
+    func waitForPendingReminderTask() async {
+        await reminderSchedulingTask?.value
+    }
+    #endif
     
     // MARK: - Course CRUD
     
@@ -55,7 +64,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         // SwiftData каскадно удалит записи Reminder из БД, но это не отменяет уже
         // запланированные UNNotificationRequest в очереди iOS — делаем это явно
         for reminder in course.reminders {
-            NotificationService.shared.cancelReminder(reminder)
+            notificationService.cancelReminder(reminder)
         }
 
         modelContext.delete(course)
@@ -81,9 +90,10 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
         
         // Удаляем доставленные уведомления и обновляем badge
-        NotificationService.shared.removeDeliveredNotifications(for: course)
+        notificationService.removeDeliveredNotifications(for: course)
+
         Task { @MainActor in
-            await NotificationService.shared.updateBadgeCount()
+            await notificationService.updateBadgeCount()
         }
     }
     
@@ -111,11 +121,11 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
 
-        enqueueReminderTask {
+        enqueueReminderTask { [self] in
             if isEnabled {
-                await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+                await notificationService.scheduleReminder(for: course, reminder: reminder)
             } else {
-                NotificationService.shared.cancelReminder(reminder)
+                notificationService.cancelReminder(reminder)
             }
         }
     }
@@ -130,10 +140,10 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
 
-        enqueueReminderTask {
-            NotificationService.shared.cancelReminder(reminder)
+        enqueueReminderTask { [self] in
+            notificationService.cancelReminder(reminder)
             if reminder.isEnabled {
-                await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+                await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
         }
     }
@@ -195,7 +205,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         // напоминанием тут же создавал бы живое уведомление в обход isEnabled
         for reminder in course.reminders where reminder.isEnabled {
             Task {
-                await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+                await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
         }
     }

@@ -8,49 +8,48 @@
 import Foundation
 import UserNotifications
 
-final class NotificationService {
-    static let shared = NotificationService()
-    
-    private let notificationCenter = UNUserNotificationCenter.current()
-    
+final class NotificationService: NotificationServiceProtocol {
+    private let notificationCenter: NotificationCenterProviding
+
     /// Идентификатор действия "Принял"
     static let takenActionIdentifier = "TAKEN_ACTION"
     /// Идентификатор действия "Отложить на час"
     static let snoozeActionIdentifier = "SNOOZE_ONE_HOUR"
     /// Идентификатор категории уведомлений
     static let categoryIdentifier = "MEDICATION_REMINDER"
-    
-    private init() {
+
+    init(notificationCenter: NotificationCenterProviding = UNUserNotificationCenter.current()) {
+        self.notificationCenter = notificationCenter
         setupNotificationCategory()
     }
-    
+
     // MARK: - Setup
-    
+
     private func setupNotificationCategory() {
         let takenAction = UNNotificationAction(
             identifier: Self.takenActionIdentifier,
             title: "Принял",
             options: []
         )
-        
+
         let snoozeAction = UNNotificationAction(
             identifier: Self.snoozeActionIdentifier,
             title: "Отложить на час",
             options: []
         )
-        
+
         let category = UNNotificationCategory(
             identifier: Self.categoryIdentifier,
             actions: [takenAction, snoozeAction],
             intentIdentifiers: [],
             options: []
         )
-        
+
         notificationCenter.setNotificationCategories([category])
     }
-    
+
     // MARK: - Permissions
-    
+
     func requestAuthorization() async -> Bool {
         do {
             let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
@@ -60,27 +59,26 @@ final class NotificationService {
             return false
         }
     }
-    
+
     func checkAuthorizationStatus() async -> UNAuthorizationStatus {
-        let settings = await notificationCenter.notificationSettings()
-        return settings.authorizationStatus
+        await notificationCenter.authorizationStatus()
     }
-    
+
     // MARK: - Schedule Notifications
-    
+
     /// Создаёт ежедневное напоминание для курса
     func scheduleReminder(for course: Course, reminder: Reminder) async {
         var dateComponents = DateComponents()
         dateComponents.hour = reminder.hour
         dateComponents.minute = reminder.minute
-        
+
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
         let content = await makeNotificationContent(courseId: course.id, reminderId: reminder.id)
         let request = UNNotificationRequest(identifier: reminder.id.uuidString, content: content, trigger: trigger)
 
         await addNotificationRequest(request)
     }
-    
+
     /// Планирует одноразовое уведомление через указанный интервал (для snooze)
     func scheduleOneTimeReminder(
         courseId: UUID,
@@ -105,7 +103,7 @@ final class NotificationService {
     }
 
     // MARK: - Private Helpers
-    
+
     private func makeNotificationContent(
         courseId: UUID,
         reminderId: UUID,
@@ -116,8 +114,11 @@ final class NotificationService {
         content.body = "Пора принять лекарство"
         content.sound = .default
         content.categoryIdentifier = Self.categoryIdentifier
-        let delivered = await notificationCenter.deliveredNotifications()
-        content.badge = NSNumber(value: delivered.count + 1)
+        // content.badge задаёт абсолютное значение бейджа на момент доставки, а не дельту —
+        // системе его инкрементировать не за что. Берём текущее число уже доставленных
+        // уведомлений и прибавляем это, чтобы бейдж не сбрасывался в 1 при каждом уведомлении.
+        let deliveredCount = await notificationCenter.deliveredNotificationsCount()
+        content.badge = NSNumber(value: deliveredCount + 1)
 
         var userInfo: [String: Any] = [
             "courseId": courseId.uuidString,
@@ -127,10 +128,10 @@ final class NotificationService {
             userInfo["originalDate"] = originalDate.timeIntervalSince1970
         }
         content.userInfo = userInfo
-        
+
         return content
     }
-    
+
     private func addNotificationRequest(_ request: UNNotificationRequest) async {
         do {
             try await notificationCenter.add(request)
@@ -152,26 +153,25 @@ final class NotificationService {
     }
 
     // MARK: - Badge
-    
+
     /// Обновляет badge на основе доставленных уведомлений
     @MainActor
     func updateBadgeCount() async {
-        let delivered = await notificationCenter.deliveredNotifications()
-        try? await UNUserNotificationCenter.current().setBadgeCount(delivered.count)
+        let count = await notificationCenter.deliveredNotificationsCount()
+        try? await notificationCenter.setBadgeCount(count)
     }
-    
+
     /// Сбрасывает badge
     @MainActor
-    func clearBadge() {
-        UNUserNotificationCenter.current().setBadgeCount(0)
+    func clearBadge() async {
+        try? await notificationCenter.setBadgeCount(0)
     }
-    
+
     // MARK: - Remove Delivered
-    
+
     /// Удаляет доставленные уведомления для курса (при приёме)
     func removeDeliveredNotifications(for course: Course) {
         let identifiers = course.reminders.flatMap { [$0.id.uuidString, snoozeIdentifier(for: $0.id)] }
         notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 }
-

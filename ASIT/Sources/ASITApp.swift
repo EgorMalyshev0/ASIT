@@ -21,7 +21,9 @@ struct ASITApp: App {
         .environmentObject(appDelegate.courseService)
         .onChange(of: scenePhase) { _, newValue in
             if newValue == .active {
-                NotificationService.shared.clearBadge()
+                Task {
+                    await appDelegate.notificationService.clearBadge()
+                }
             }
         }
     }

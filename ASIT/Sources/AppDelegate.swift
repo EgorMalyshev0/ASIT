@@ -9,9 +9,17 @@ import UIKit
 import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    let courseService = CourseManagementService()
+    let notificationService: NotificationServiceProtocol
+    let courseService: CourseManagementService
     let localizationService = LocalizationService()
-    
+
+    override init() {
+        let notificationService = NotificationService()
+        self.notificationService = notificationService
+        self.courseService = CourseManagementService(notificationService: notificationService)
+        super.init()
+    }
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -19,7 +27,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         
         Task {
-            await NotificationService.shared.requestAuthorization()
+            await notificationService.requestAuthorization()
         }
         
         return true
@@ -84,7 +92,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 return
             }
 
-            await NotificationService.shared.scheduleOneTimeReminder(
+            await notificationService.scheduleOneTimeReminder(
                 courseId: courseId,
                 reminderId: reminderId,
                 originalDate: intakeDate,

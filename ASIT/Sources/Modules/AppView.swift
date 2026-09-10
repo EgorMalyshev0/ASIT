@@ -35,5 +35,5 @@ private extension AppView {
 
 #Preview {
     AppView()
-        .environmentObject(CourseManagementService())
+        .environmentObject(CourseManagementService(notificationService: NotificationService()))
 }
