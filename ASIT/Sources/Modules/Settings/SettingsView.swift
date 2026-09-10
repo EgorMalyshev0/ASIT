@@ -51,7 +51,7 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Готово") {
+                    ToolbarActionButton(role: .close) {
                         dismiss()
                     }
                 }

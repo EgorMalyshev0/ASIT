@@ -54,21 +54,22 @@ struct AddCourseView: View {
                 DatePicker("Дата окончания курса", selection: $viewModel.endDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
             }
-            .navigationTitle("Добавить новый курс")
+            .navigationTitle("Новый курс")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        viewModel.addCourse()
-                        dismiss()
-                    }) {
-                        Image(systemName: "checkmark")
-                    }
-                    .tint(.blue)
-                    .disabled(!viewModel.isFormValid)
+                    confirmButton
                 }
             }
         }
+    }
+
+    private var confirmButton: some View {
+        ToolbarActionButton(role: .confirm) {
+            viewModel.addCourse()
+            dismiss()
+        }
+        .disabled(!viewModel.isFormValid)
     }
 }
 

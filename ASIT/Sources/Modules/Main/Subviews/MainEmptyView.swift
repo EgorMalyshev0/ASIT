@@ -15,6 +15,7 @@ struct MainEmptyView: View {
             Text("У вас нет ни одного курса")
                 .font(.title)
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
 
             if #available(iOS 26.0, *) {
                 addButton
@@ -29,5 +30,10 @@ struct MainEmptyView: View {
 
     private var addButton: some View {
         Button("Добавить", action: onTap)
+            .font(.title3)
     }
+}
+
+#Preview {
+    MainEmptyView(onTap: {})
 }

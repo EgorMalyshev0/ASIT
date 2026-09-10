@@ -74,7 +74,7 @@ struct IntakeAddingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") {
+                    ToolbarActionButton(role: .cancel) {
                         dismiss()
                     }
                 }
