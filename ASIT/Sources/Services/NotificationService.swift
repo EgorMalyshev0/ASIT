@@ -75,9 +75,9 @@ final class NotificationService {
         dateComponents.minute = reminder.minute
         
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let content = makeNotificationContent(courseId: course.id, reminderId: reminder.id)
+        let content = await makeNotificationContent(courseId: course.id, reminderId: reminder.id)
         let request = UNNotificationRequest(identifier: reminder.id.uuidString, content: content, trigger: trigger)
-        
+
         await addNotificationRequest(request)
     }
     
@@ -89,27 +89,36 @@ final class NotificationService {
         afterInterval interval: TimeInterval
     ) async {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let content = makeNotificationContent(courseId: courseId, reminderId: reminderId, originalDate: originalDate)
-        let request = UNNotificationRequest(identifier: reminderId.uuidString, content: content, trigger: trigger)
-        
+        let content = await makeNotificationContent(
+            courseId: courseId,
+            reminderId: reminderId,
+            originalDate: originalDate
+        )
+        // Отдельный идентификатор, отличный от ежедневного напоминания
+        let request = UNNotificationRequest(
+            identifier: snoozeIdentifier(for: reminderId),
+            content: content,
+            trigger: trigger
+        )
+
         await addNotificationRequest(request)
     }
-    
+
     // MARK: - Private Helpers
     
-    private func isAuthorized() async -> Bool {
-        await checkAuthorizationStatus() == .authorized
-    }
-    
-    private func makeNotificationContent(courseId: UUID, reminderId: UUID, originalDate: Date? = nil) -> UNNotificationContent {
+    private func makeNotificationContent(
+        courseId: UUID,
+        reminderId: UUID,
+        originalDate: Date? = nil
+    ) async -> UNNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = "Напоминание"
         content.body = "Пора принять лекарство"
         content.sound = .default
         content.categoryIdentifier = Self.categoryIdentifier
-        // Badge будет инкрементироваться системой
-        content.badge = 1
-        
+        let delivered = await notificationCenter.deliveredNotifications()
+        content.badge = NSNumber(value: delivered.count + 1)
+
         var userInfo: [String: Any] = [
             "courseId": courseId.uuidString,
             "reminderId": reminderId.uuidString
@@ -129,20 +138,19 @@ final class NotificationService {
             print("Failed to schedule notification: \(error)")
         }
     }
-    
-    /// Удаляет напоминание для курса
+
+    /// Удаляет напоминание для курса (и ежедневное, и отложенное — если оригинал
+    /// отменяется или переносится, любой ожидающий snooze для него тоже должен исчезнуть)
     func cancelReminder(_ reminder: Reminder) {
-        let identifier = reminder.id.uuidString
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
-        notificationCenter.removeDeliveredNotifications(withIdentifiers: [identifier])
+        let identifiers = [reminder.id.uuidString, snoozeIdentifier(for: reminder.id)]
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
+        notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
-    
-    /// Удаляет все напоминания
-    func cancelAllReminders() {
-        notificationCenter.removeAllPendingNotificationRequests()
-        notificationCenter.removeAllDeliveredNotifications()
+
+    private func snoozeIdentifier(for reminderId: UUID) -> String {
+        "\(reminderId.uuidString)-snooze"
     }
-    
+
     // MARK: - Badge
     
     /// Обновляет badge на основе доставленных уведомлений
@@ -162,7 +170,7 @@ final class NotificationService {
     
     /// Удаляет доставленные уведомления для курса (при приёме)
     func removeDeliveredNotifications(for course: Course) {
-        let identifiers = course.reminders.map { $0.id.uuidString }
+        let identifiers = course.reminders.flatMap { [$0.id.uuidString, snoozeIdentifier(for: $0.id)] }
         notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 }

@@ -34,8 +34,12 @@ final class Reminder {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date.now)
     }
 
-    static let `default` = Reminder(hour: defaultHour, minute: defaultMinute, isEnabled: false)
     static let defaultHour: Int = 10
     static let defaultMinute: Int = 0
+
+    /// Создаёт новый выключенный ремайндер с дефолтным временем.
+    static func makeDefault() -> Reminder {
+        Reminder(hour: defaultHour, minute: defaultMinute, isEnabled: false)
+    }
 }
 

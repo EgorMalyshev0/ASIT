@@ -55,7 +55,7 @@ final class CourseSettingsViewModel {
 
     @MainActor
     private func updateState(for course: Course) {
-        let reminder = course.reminders.first ?? Reminder.default
+        let reminder = course.reminders.first ?? Reminder.makeDefault()
         let name = medications.first { $0.id == course.medicationId }?.name.ru ?? course.medicationId
 
         let state = CourseSettingsState(

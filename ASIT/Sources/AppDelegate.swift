@@ -78,8 +78,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             courseService.handleTakenActionFromPush(courseId: courseId, date: intakeDate)
             
         case NotificationService.snoozeActionIdentifier:
-            // Откладываем напоминание на час от текущего времени
-            let reminderId = (userInfo["reminderId"] as? String).flatMap { UUID(uuidString: $0) } ?? UUID()
+            // Откладываем напоминание на час от текущего времени.
+            guard let reminderIdString = userInfo["reminderId"] as? String,
+                  let reminderId = UUID(uuidString: reminderIdString) else {
+                return
+            }
+
             await NotificationService.shared.scheduleOneTimeReminder(
                 courseId: courseId,
                 reminderId: reminderId,

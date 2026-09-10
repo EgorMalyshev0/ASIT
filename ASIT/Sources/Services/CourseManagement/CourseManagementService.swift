@@ -18,6 +18,9 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     
     let modelContainer: ModelContainer
     private let modelContext: ModelContext
+
+    /// Последняя запущенная задача планирования/отмены уведомлений
+    private var reminderSchedulingTask: Task<Void, Never>?
     
     init() {
         let schema = Schema([Course.self, Intake.self, Reminder.self])
@@ -37,7 +40,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     
     func addCourse(_ course: Course) {
         // сразу кладем дефолтный выключенный ремайндер
-        course.reminders = [Reminder.default]
+        course.reminders = [Reminder.makeDefault()]
         modelContext.insert(course)
         save()
         fetchCourses()
@@ -49,6 +52,12 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     }
     
     func deleteCourse(_ course: Course) {
+        // SwiftData каскадно удалит записи Reminder из БД, но это не отменяет уже
+        // запланированные UNNotificationRequest в очереди iOS — делаем это явно
+        for reminder in course.reminders {
+            NotificationService.shared.cancelReminder(reminder)
+        }
+
         modelContext.delete(course)
         save()
         fetchCourses()
@@ -96,23 +105,23 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     // MARK: - Reminder CRUD
 
     func setReminderEnabled(_ isEnabled: Bool, course: Course) {
-        let reminder = course.reminders.first ?? Reminder.default
+        let reminder = course.reminders.first ?? Reminder.makeDefault()
         reminder.isEnabled = isEnabled
         course.reminders = [reminder]
         save()
         fetchCourses()
 
-        if isEnabled {
-            Task {
+        enqueueReminderTask {
+            if isEnabled {
                 await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+            } else {
+                NotificationService.shared.cancelReminder(reminder)
             }
-        } else {
-            NotificationService.shared.cancelReminder(reminder)
         }
     }
 
     func updateReminderTime(_ newTime: Date, course: Course) {
-        let reminder = course.reminders.first ?? Reminder.default
+        let reminder = course.reminders.first ?? Reminder.makeDefault()
         let components = Calendar.current.dateComponents([.hour, .minute], from: newTime)
 
         reminder.hour = components.hour ?? Reminder.defaultHour
@@ -121,10 +130,21 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
 
-        NotificationService.shared.cancelReminder(reminder)
+        enqueueReminderTask {
+            NotificationService.shared.cancelReminder(reminder)
+            if reminder.isEnabled {
+                await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+            }
+        }
+    }
 
-        Task {
-            await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
+    /// Выполняет операции планирования/отмены уведомлений строго в порядке вызова,
+    /// дожидаясь предыдущей операции перед началом следующей
+    private func enqueueReminderTask(_ operation: @escaping () async -> Void) {
+        let previous = reminderSchedulingTask
+        reminderSchedulingTask = Task {
+            await previous?.value
+            await operation()
         }
     }
 
@@ -171,8 +191,9 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
         
-        // Планируем напоминания
-        for reminder in course.reminders {
+        // Планируем напоминания — только включённые, иначе импорт курса с выключенным
+        // напоминанием тут же создавал бы живое уведомление в обход isEnabled
+        for reminder in course.reminders where reminder.isEnabled {
             Task {
                 await NotificationService.shared.scheduleReminder(for: course, reminder: reminder)
             }
