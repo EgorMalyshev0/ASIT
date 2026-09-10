@@ -8,7 +8,6 @@
 import Foundation
 
 /// Единая точка сборки сервисов приложения (composition root).
-@MainActor
 final class ServiceProvider {
     let notificationService: NotificationServiceProtocol
     let courseService: CourseManagementService
