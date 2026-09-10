@@ -9,27 +9,18 @@ import UIKit
 import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    let notificationService: NotificationServiceProtocol
-    let courseService: CourseManagementService
-    let localizationService = LocalizationService()
-
-    override init() {
-        let notificationService = NotificationService()
-        self.notificationService = notificationService
-        self.courseService = CourseManagementService(notificationService: notificationService)
-        super.init()
-    }
+    let serviceProvider = ServiceProvider()
 
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
-        
+
         Task {
-            await notificationService.requestAuthorization()
+            await serviceProvider.notificationService.requestAuthorization()
         }
-        
+
         return true
     }
 
@@ -46,7 +37,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         
         guard let courseIdString = userInfo["courseId"] as? String,
               let courseId = UUID(uuidString: courseIdString),
-              let course = courseService.courses.first(where: { $0.id == courseId }) else {
+              let course = serviceProvider.courseService.courses.first(where: { $0.id == courseId }) else {
             return [.banner, .sound]
         }
         
@@ -83,8 +74,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         
         switch response.actionIdentifier {
         case NotificationService.takenActionIdentifier:
-            courseService.handleTakenActionFromPush(courseId: courseId, date: intakeDate)
-            
+            serviceProvider.courseService.handleTakenActionFromPush(courseId: courseId, date: intakeDate)
+
         case NotificationService.snoozeActionIdentifier:
             // Откладываем напоминание на час от текущего времени.
             guard let reminderIdString = userInfo["reminderId"] as? String,
@@ -92,7 +83,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 return
             }
 
-            await notificationService.scheduleOneTimeReminder(
+            await serviceProvider.notificationService.scheduleOneTimeReminder(
                 courseId: courseId,
                 reminderId: reminderId,
                 originalDate: intakeDate,

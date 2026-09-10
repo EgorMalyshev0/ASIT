@@ -8,9 +8,16 @@
 import SwiftUI
 
 struct AppView: View {
-    @EnvironmentObject private var courseService: CourseManagementService
+    @State private var viewModel: AppViewModel
     @State private var isCourseAddingPresented: Bool = false
     @State private var isCourseSettingsPresented: Bool = false
+
+    private let courseService: CourseManagementServiceProtocol
+
+    init(courseService: CourseManagementServiceProtocol) {
+        self.courseService = courseService
+        _viewModel = State(initialValue: AppViewModel(courseService: courseService))
+    }
 
     var body: some View {
         content
@@ -23,17 +30,16 @@ struct AppView: View {
 private extension AppView {
     @ViewBuilder
     var content: some View {
-        if courseService.courses.isEmpty {
+        if viewModel.hasCourses {
+            MainView(courseService: courseService)
+        } else {
             MainEmptyView {
                 isCourseAddingPresented = true
             }
-        } else {
-            MainView(courseService: courseService)
         }
     }
 }
 
 #Preview {
-    AppView()
-        .environmentObject(CourseManagementService(notificationService: NotificationService()))
+    AppView(courseService: MockCourseManagementService(withMockData: true))
 }

@@ -15,14 +15,12 @@ struct ASITApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppView()
+            AppView(courseService: appDelegate.serviceProvider.courseService)
         }
-        .environmentObject(appDelegate.localizationService)
-        .environmentObject(appDelegate.courseService)
         .onChange(of: scenePhase) { _, newValue in
             if newValue == .active {
                 Task {
-                    await appDelegate.notificationService.clearBadge()
+                    await appDelegate.serviceProvider.notificationService.clearBadge()
                 }
             }
         }
