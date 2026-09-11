@@ -11,19 +11,19 @@ import Combine
 @Observable
 final class SettingsViewModel {
     var courses: [Course] = []
-    var medications: [Medication] = []
-    
+
     private let courseService: CourseManagementServiceProtocol
+    private let medicationService: MedicationServiceProtocol
     private var cancellables = Set<AnyCancellable>()
-    
-    init(courseService: CourseManagementServiceProtocol) {
+
+    init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         self.courseService = courseService
+        self.medicationService = medicationService
         setupBindings()
-        fetchMedications()
     }
-    
+
     func medicationName(for course: Course) -> String {
-        medications.first { $0.id == course.medicationId }?.name.ru ?? course.medicationId
+        medicationService.medication(withId: course.medicationId)?.name.ru ?? course.medicationId
     }
     
     func importCourse(from url: URL) throws {
@@ -41,7 +41,7 @@ final class SettingsViewModel {
     }
 
     func makeCourseSettingsViewModel(for course: Course) -> CourseSettingsViewModel {
-        CourseSettingsViewModel(course: course, courseService: courseService)
+        CourseSettingsViewModel(course: course, courseService: courseService, medicationService: medicationService)
     }
 
     private func setupBindings() {
@@ -51,20 +51,6 @@ final class SettingsViewModel {
                 self?.courses = courses
             }
             .store(in: &cancellables)
-    }
-    
-    private func fetchMedications() {
-        guard let url = Bundle.main.url(forResource: "Medications", withExtension: "json") else {
-            return
-        }
-        
-        do {
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            medications = try decoder.decode([Medication].self, from: data)
-        } catch {
-            print("Failed to decode Medications: \(error)")
-        }
     }
 }
 

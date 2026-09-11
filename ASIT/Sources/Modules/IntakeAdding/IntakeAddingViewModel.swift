@@ -39,11 +39,13 @@ final class IntakeAddingViewModel {
     }
     
     private let courseService: CourseManagementServiceProtocol
-    
-    init(course: Course, date: Date, courseService: CourseManagementServiceProtocol) {
+    private let medicationService: MedicationServiceProtocol
+
+    init(course: Course, date: Date, courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         self.course = course
         self.date = date
         self.courseService = courseService
+        self.medicationService = medicationService
         loadMedication()
         prefillFromIntake()
     }
@@ -74,21 +76,11 @@ final class IntakeAddingViewModel {
     }
 
     private func loadMedication() {
-        guard let url = Bundle.main.url(forResource: "Medications", withExtension: "json") else {
-            return
-        }
-        
-        do {
-            let data = try Data(contentsOf: url)
-            let medications = try JSONDecoder().decode([Medication].self, from: data)
-            medication = medications.first { $0.id == course.medicationId }
-            availableVariants = medication?.variants ?? []
-            
-            if let firstVariant = availableVariants.first {
-                selectedVariantId = firstVariant.id
-            }
-        } catch {
-            print("Failed to load medication: \(error)")
+        medication = medicationService.medication(withId: course.medicationId)
+        availableVariants = medication?.variants ?? []
+
+        if let firstVariant = availableVariants.first {
+            selectedVariantId = firstVariant.id
         }
     }
     

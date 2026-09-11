@@ -17,8 +17,8 @@ struct SettingsView: View {
 
     let onAddNewCourse: () -> Void
 
-    init(courseService: CourseManagementServiceProtocol, onAddNewCourse: @escaping () -> Void) {
-        _viewModel = State(initialValue: SettingsViewModel(courseService: courseService))
+    init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol, onAddNewCourse: @escaping () -> Void) {
+        _viewModel = State(initialValue: SettingsViewModel(courseService: courseService, medicationService: medicationService))
         self.onAddNewCourse = onAddNewCourse
     }
 
@@ -86,5 +86,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView(courseService: MockCourseManagementService(withMockData: true), onAddNewCourse: {})
+    SettingsView(courseService: MockCourseManagementService(withMockData: true), medicationService: MockMedicationService(), onAddNewCourse: {})
 }

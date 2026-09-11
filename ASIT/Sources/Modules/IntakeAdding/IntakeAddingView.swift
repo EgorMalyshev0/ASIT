@@ -11,8 +11,8 @@ struct IntakeAddingView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: IntakeAddingViewModel
 
-    init(course: Course, date: Date, courseService: CourseManagementServiceProtocol) {
-        _viewModel = State(initialValue: IntakeAddingViewModel(course: course, date: date, courseService: courseService))
+    init(course: Course, date: Date, courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
+        _viewModel = State(initialValue: IntakeAddingViewModel(course: course, date: date, courseService: courseService, medicationService: medicationService))
     }
 
     var body: some View {
@@ -85,5 +85,5 @@ struct IntakeAddingView: View {
 }
 
 #Preview {
-    IntakeAddingView(course: .mock, date: .now, courseService: MockCourseManagementService())
+    IntakeAddingView(course: .mock, date: .now, courseService: MockCourseManagementService(), medicationService: MockMedicationService())
 }

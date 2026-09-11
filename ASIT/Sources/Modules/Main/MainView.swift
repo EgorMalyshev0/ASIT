@@ -15,10 +15,12 @@ struct MainView: View {
     @State private var isSettingsPresented = false
     
     private let courseService: CourseManagementServiceProtocol
+    private let medicationService: MedicationServiceProtocol
 
-    init(courseService: CourseManagementServiceProtocol) {
+    init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         self.courseService = courseService
-        _viewModel = State(initialValue: MainViewModel(courseService: courseService))
+        self.medicationService = medicationService
+        _viewModel = State(initialValue: MainViewModel(courseService: courseService, medicationService: medicationService))
     }
 
     var body: some View {
@@ -53,7 +55,7 @@ struct MainView: View {
                 }
         }
         .sheet(item: $courseForIntake) { course in
-            IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService)
+            IntakeAddingView(course: course, date: viewModel.selectedDate, courseService: courseService, medicationService: medicationService)
         }
         .sheet(isPresented: $isCalendarPresented, onDismiss: {
             viewModel.selectDate(viewModel.selectedDate)
@@ -64,10 +66,10 @@ struct MainView: View {
             )
         }
         .sheet(isPresented: $isAddCoursePresented) {
-            AddCourseView(courseService: courseService)
+            AddCourseView(courseService: courseService, medicationService: medicationService)
         }
         .sheet(isPresented: $isSettingsPresented) {
-            SettingsView(courseService: courseService) {
+            SettingsView(courseService: courseService, medicationService: medicationService) {
                 isSettingsPresented = false
                 isAddCoursePresented = true
             }
@@ -140,5 +142,5 @@ struct MainView: View {
 }
 
 #Preview {
-    MainView(courseService: MockCourseManagementService(withMockData: true))
+    MainView(courseService: MockCourseManagementService(withMockData: true), medicationService: MockMedicationService())
 }

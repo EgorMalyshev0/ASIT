@@ -11,17 +11,17 @@ import Foundation
 @Observable
 final class CourseSettingsViewModel {
     var state: CourseSettingsState = .empty
-    var medications: [Medication] = []
     let course: Course
 
     private let courseService: CourseManagementServiceProtocol
+    private let medicationService: MedicationServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private var reminderUpdateTask: Task<Void, Never>?
 
-    init(course: Course, courseService: CourseManagementServiceProtocol) {
+    init(course: Course, courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         self.course = course
         self.courseService = courseService
-        fetchMedications()
+        self.medicationService = medicationService
         updateState(for: course)
     }
 
@@ -56,7 +56,7 @@ final class CourseSettingsViewModel {
     @MainActor
     private func updateState(for course: Course) {
         let reminder = course.reminders.first ?? Reminder.makeDefault()
-        let name = medications.first { $0.id == course.medicationId }?.name.ru ?? course.medicationId
+        let name = medicationService.medication(withId: course.medicationId)?.name.ru ?? course.medicationId
 
         let state = CourseSettingsState(
             isReminderEnabled: reminder.isEnabled,
@@ -65,20 +65,6 @@ final class CourseSettingsViewModel {
         )
 
         self.state = state
-    }
-
-    private func fetchMedications() {
-        guard let url = Bundle.main.url(forResource: "Medications", withExtension: "json") else {
-            return
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            medications = try decoder.decode([Medication].self, from: data)
-        } catch {
-            print("Failed to decode Medications: \(error)")
-        }
     }
 }
 

@@ -11,8 +11,8 @@ struct AddCourseView: View {
     @Environment(\.dismiss) var dismiss
     @State private var viewModel: AddCourseViewModel
 
-    init(courseService: CourseManagementServiceProtocol) {
-        _viewModel = State(initialValue: AddCourseViewModel(courseService: courseService))
+    init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
+        _viewModel = State(initialValue: AddCourseViewModel(courseService: courseService, medicationService: medicationService))
     }
 
     var body: some View {
@@ -74,5 +74,5 @@ struct AddCourseView: View {
 }
 
 #Preview {
-    AddCourseView(courseService: CourseManagementService(notificationService: NotificationService()))
+    AddCourseView(courseService: CourseManagementService(notificationService: NotificationService()), medicationService: MockMedicationService())
 }

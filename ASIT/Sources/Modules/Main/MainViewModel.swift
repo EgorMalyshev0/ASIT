@@ -13,7 +13,6 @@ import Combine
 final class MainViewModel {
     /// Выбранная дата — единственный источник правды
     var selectedDate: Date
-    var medications: [Medication] = []
 
     /// Текущая позиция горизонтального скролла дней (id = дата страницы)
     var scrollTargetDate: Date? {
@@ -49,13 +48,14 @@ final class MainViewModel {
 
     private let calendar = Calendar.current
     private let courseService: CourseManagementServiceProtocol
+    private let medicationService: MedicationServiceProtocol
 
-    init(courseService: CourseManagementServiceProtocol) {
+    init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         self.courseService = courseService
+        self.medicationService = medicationService
         let today = calendar.startOfDay(for: Date())
         self.selectedDate = today
         setupBindings()
-        fetchMedications()
 
         rebuildDayPages(around: today)
         rebuildWeekPages(around: today)
@@ -66,7 +66,7 @@ final class MainViewModel {
     // MARK: - Public Methods
 
     func medication(for course: Course) -> Medication? {
-        medications.first { $0.id == course.medicationId }
+        medicationService.medication(withId: course.medicationId)
     }
 
     func confirmIntake(for course: Course, on date: Date) {
@@ -121,20 +121,6 @@ final class MainViewModel {
                 self?.refreshWeekPagesContent()
             }
             .store(in: &cancellables)
-    }
-
-    private func fetchMedications() {
-        guard let url = Bundle.main.url(forResource: "Medications", withExtension: "json") else {
-            return
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            medications = try decoder.decode([Medication].self, from: data)
-        } catch {
-            print("Failed to decode Medications: \(error)")
-        }
     }
 
     /// Пользователь долистал горизонтальный скролл дней до новой страницы

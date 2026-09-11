@@ -15,7 +15,10 @@ struct ASITApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppView(courseService: appDelegate.serviceProvider.courseService)
+            AppView(
+                courseService: appDelegate.serviceProvider.courseService,
+                medicationService: appDelegate.serviceProvider.medicationService
+            )
         }
         .onChange(of: scenePhase) { _, newValue in
             if newValue == .active {

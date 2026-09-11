@@ -10,7 +10,7 @@ import Foundation
 @MainActor
 struct MainViewModelWeekScrollTests {
     private func makeViewModel() -> MainViewModel {
-        MainViewModel(courseService: MockCourseManagementService())
+        MainViewModel(courseService: MockCourseManagementService(), medicationService: MockMedicationService())
     }
 
     @Test func daySwipe_crossingSundayToMonday_movesWeekScrollTarget() async throws {
