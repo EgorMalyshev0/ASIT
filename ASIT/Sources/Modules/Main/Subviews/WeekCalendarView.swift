@@ -15,18 +15,11 @@ struct WeekCalendarView: View {
     @Binding var scrollTarget: Date?
     let onDaySelected: (WeekDayModel) -> Void
 
-    private let weekdaySymbols: [String] = {
-        var symbols = Calendar.current.shortWeekdaySymbols
-        let sunday = symbols.removeFirst()
-        symbols.append(sunday)
-        return symbols
-    }()
-
     var body: some View {
         VStack(spacing: 0) {
             // Фиксированная строка с днями недели
             HStack(spacing: 0) {
-                ForEach(weekdaySymbols, id: \.self) { symbol in
+                ForEach(Calendar.current.mondayFirstShortWeekdaySymbols, id: \.self) { symbol in
                     Text(symbol.uppercased())
                         .font(.caption2)
                         .fontWeight(.medium)

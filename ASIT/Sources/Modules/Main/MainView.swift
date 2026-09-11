@@ -60,7 +60,7 @@ struct MainView: View {
         }) {
             FullCalendarView(
                 selectedDate: $viewModel.selectedDate,
-                courses: viewModel.courses
+                courseService: courseService
             )
         }
         .sheet(isPresented: $isAddCoursePresented) {

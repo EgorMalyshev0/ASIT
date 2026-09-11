@@ -35,13 +35,6 @@ final class MainViewModel {
         }
     }
 
-    var courses: [Course] = [] {
-        didSet {
-            refreshDayPagesContent()
-            refreshWeekPagesContent()
-        }
-    }
-
     var isToday: Bool {
         calendar.isDateInToday(selectedDate)
     }
@@ -123,8 +116,9 @@ final class MainViewModel {
     private func setupBindings() {
         courseService.coursesPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] courses in
-                self?.courses = courses
+            .sink { [weak self] _ in
+                self?.refreshDayPagesContent()
+                self?.refreshWeekPagesContent()
             }
             .store(in: &cancellables)
     }
@@ -338,7 +332,7 @@ final class MainViewModel {
 
     private func activeCourses(for date: Date) -> [Course] {
         let startOfDate = calendar.startOfDay(for: date)
-        return courses.filter { course in
+        return courseService.courses.filter { course in
             let startOfCourseStart = calendar.startOfDay(for: course.startDate)
             let startOfCourseEnd = calendar.startOfDay(for: course.endDate)
 
