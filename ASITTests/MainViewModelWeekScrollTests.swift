@@ -38,4 +38,19 @@ struct MainViewModelWeekScrollTests {
         #expect(calendar.isDate(viewModel.selectedDate, inSameDayAs: monday))
         #expect(weekTargetAfter != weekTargetBefore)
     }
+
+    @Test func longUnidirectionalDayScroll_keepsWindowsBounded() {
+        let calendar = Calendar.current
+        let viewModel = makeViewModel()
+
+        var current = viewModel.selectedDate
+        for _ in 0..<200 {
+            current = calendar.date(byAdding: .day, value: 1, to: current)!
+            viewModel.scrollTargetDate = current
+        }
+
+        #expect(viewModel.dayPages.count <= 90)
+        #expect(viewModel.weekPages.count <= 12)
+        #expect(viewModel.dayPages.contains { calendar.isDate($0.date, inSameDayAs: current) })
+    }
 }

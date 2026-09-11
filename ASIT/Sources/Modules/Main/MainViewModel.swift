@@ -235,6 +235,26 @@ final class MainViewModel {
             }
             dayPages.append(contentsOf: newPages)
         }
+
+        trimDayWindow(around: target)
+    }
+
+    /// Подрезает окно дней с дальнего от target края, если оно разрослось за счёт
+    /// долгого скролла в одну сторону — иначе массив рос бы неограниченно
+    private func trimDayWindow(around target: Date) {
+        let excess = dayPages.count - Constants.dayWindowMaxSize
+        guard excess > 0, let first = dayPages.first?.date, let last = dayPages.last?.date else {
+            return
+        }
+
+        let daysFromStart = calendar.dateComponents([.day], from: first, to: target).day ?? 0
+        let daysFromEnd = calendar.dateComponents([.day], from: target, to: last).day ?? 0
+
+        if daysFromStart > daysFromEnd {
+            dayPages.removeFirst(excess)
+        } else {
+            dayPages.removeLast(excess)
+        }
     }
 
     private func ensureWeekWindow(covers date: Date) {
@@ -264,6 +284,26 @@ final class MainViewModel {
                 calendar.date(byAdding: .day, value: offset * 7, to: last).map(makeWeekPageModel)
             }
             weekPages.append(contentsOf: newPages)
+        }
+
+        trimWeekWindow(around: target)
+    }
+
+    /// Подрезает окно недель с дальнего от target края — по той же причине,
+    /// что и trimDayWindow
+    private func trimWeekWindow(around target: Date) {
+        let excess = weekPages.count - Constants.weekWindowMaxSize
+        guard excess > 0, let first = weekPages.first?.weekStart, let last = weekPages.last?.weekStart else {
+            return
+        }
+
+        let weeksFromStart = (calendar.dateComponents([.day], from: first, to: target).day ?? 0) / 7
+        let weeksFromEnd = (calendar.dateComponents([.day], from: target, to: last).day ?? 0) / 7
+
+        if weeksFromStart > weeksFromEnd {
+            weekPages.removeFirst(excess)
+        } else {
+            weekPages.removeLast(excess)
         }
     }
 
@@ -351,9 +391,14 @@ private extension MainViewModel {
         static let dayWindowRadius = 15
         static let dayWindowExtendThreshold = 5
         static let dayWindowExtendChunk = 15
+        /// Верхняя граница размера окна дней — при долгом скролле в одну сторону
+        /// не даёт массиву расти неограниченно
+        static let dayWindowMaxSize = 90
 
         static let weekWindowRadius = 2
         static let weekWindowExtendThreshold = 1
         static let weekWindowExtendChunk = 2
+        /// Верхняя граница размера окна недель — та же защита, что и dayWindowMaxSize
+        static let weekWindowMaxSize = 12
     }
 }
