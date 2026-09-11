@@ -7,15 +7,13 @@
 
 import SwiftUI
 
-/// Горизонтальный календарь недели с paging скроллом
+/// Горизонтальный календарь недели с бесконечным скроллом.
+/// Позиция скролла привязана к дате начала недели (стабильный id),
+/// поэтому расширение окна страниц не приводит к перескокам или фризам.
 struct WeekCalendarView: View {
-    let weeks: [[WeekDayModel]]
+    let weekPages: [WeekPageModel]
+    @Binding var scrollTarget: Date?
     let onDaySelected: (WeekDayModel) -> Void
-    let onWeekChanged: (Int) -> Void
-    
-    /// Внутреннее состояние для TabView — всегда центрируется на 1
-    @State private var currentPage: Int = 1
-    @State private var isAnimating = false
 
     private let weekdaySymbols: [String] = {
         var symbols = Calendar.current.shortWeekdaySymbols
@@ -23,7 +21,7 @@ struct WeekCalendarView: View {
         symbols.append(sunday)
         return symbols
     }()
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Фиксированная строка с днями недели
@@ -39,45 +37,26 @@ struct WeekCalendarView: View {
             .padding(.horizontal, 8)
             .padding(.top, 12)
             .padding(.bottom, 8)
-            
+
             // Скроллящиеся числа
-            TabView(selection: $currentPage) {
-                ForEach(Array(weeks.enumerated()), id: \.offset) { index, week in
-                    WeekRow(days: week, onDaySelected: onDaySelected)
-                        .tag(index)
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(weekPages) { week in
+                        WeekRow(days: week.days, onDaySelected: onDaySelected)
+                            .containerRelativeFrame(.horizontal)
+                    }
                 }
+                .scrollTargetLayout()
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $scrollTarget)
+            .scrollIndicators(.hidden)
             .frame(height: 56)
         }
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemGray6))
         )
-        .onChange(of: currentPage) { oldValue, newValue in
-            handlePageChange(from: oldValue, to: newValue)
-        }
-        .onChange(of: weeks) {
-            // При обновлении weeks извне — сбрасываем на центр
-            currentPage = 1
-        }
-    }
-    
-    private func handlePageChange(from oldValue: Int, to newValue: Int) {
-        // Центральная неделя — индекс 1
-        guard newValue != 1, !isAnimating else { return }
-        
-        isAnimating = true
-        let direction = newValue == 0 ? -1 : 1
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            onWeekChanged(direction)
-            // currentPage сбросится на 1 через onChange(of: weeks)
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                isAnimating = false
-            }
-        }
     }
 }
 
@@ -86,13 +65,13 @@ struct WeekCalendarView: View {
 private struct WeekRow: View {
     let days: [WeekDayModel]
     let onDaySelected: (WeekDayModel) -> Void
-    
+
     var body: some View {
         HStack(spacing: 0) {
             ForEach(days) { day in
                 DayCell(day: day)
                     .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.15)) {
+                        withAnimation {
                             onDaySelected(day)
                         }
                     }
@@ -106,7 +85,7 @@ private struct WeekRow: View {
 
 private struct DayCell: View {
     let day: WeekDayModel
-    
+
     var body: some View {
         VStack(spacing: 4) {
             Text(day.dayNumber)
@@ -121,7 +100,7 @@ private struct DayCell: View {
                     Circle()
                         .stroke(day.isToday && !day.isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2)
                 )
-            
+
             // Точка под числом — все курсы приняты
             Circle()
                 .fill(day.allIntakesTaken ? Color.blue : Color.clear)
@@ -134,10 +113,13 @@ private struct DayCell: View {
 #Preview {
     let today = Date()
     let calendar = Calendar.current
-    
-    let weeks: [[WeekDayModel]] = (-1...1).map { weekOffset in
-        (0..<7).map { dayOffset in
-            let date = calendar.date(byAdding: .day, value: weekOffset * 7 + dayOffset, to: today)!
+
+    let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+
+    let weekPages: [WeekPageModel] = (-1...1).map { weekOffset in
+        let start = calendar.date(byAdding: .day, value: weekOffset * 7, to: weekStart)!
+        let days = (0..<7).map { dayOffset in
+            let date = calendar.date(byAdding: .day, value: dayOffset, to: start)!
             return WeekDayModel(
                 date: date,
                 dayNumber: "\(calendar.component(.day, from: date))",
@@ -147,12 +129,13 @@ private struct DayCell: View {
                 hasCourses: true
             )
         }
+        return WeekPageModel(weekStart: start, days: days)
     }
-    
+
     return WeekCalendarView(
-        weeks: weeks,
-        onDaySelected: { _ in },
-        onWeekChanged: { _ in }
+        weekPages: weekPages,
+        scrollTarget: .constant(weekStart),
+        onDaySelected: { _ in }
     )
     .padding()
 }

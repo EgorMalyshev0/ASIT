@@ -7,14 +7,12 @@
 
 import Foundation
 
-/// Модель страницы дня для TabView
-struct DayPageModel: Identifiable, Equatable {
-    let id: Int // индекс в массиве
+/// Модель страницы дня для горизонтального скролла.
+/// `id` — сама дата, поэтому при расширении окна прокрутки существующие
+/// страницы не меняют идентичность и SwiftUI не теряет позицию скролла.
+struct DayPageModel: Identifiable {
     let date: Date
     let courses: [Course]
-    
-    static func == (lhs: DayPageModel, rhs: DayPageModel) -> Bool {
-        lhs.id == rhs.id && lhs.date == rhs.date
-    }
-}
 
+    var id: Date { date }
+}

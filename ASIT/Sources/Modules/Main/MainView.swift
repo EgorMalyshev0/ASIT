@@ -77,22 +77,25 @@ struct MainView: View {
     private var mainContent: some View {
         VStack(spacing: 0) {
             WeekCalendarView(
-                weeks: viewModel.weekDays,
+                weekPages: viewModel.weekPages,
+                scrollTarget: $viewModel.weekScrollTarget,
                 onDaySelected: { day in
                     viewModel.selectWeekDay(day)
-                },
-                onWeekChanged: { direction in
-                    viewModel.changeWeek(direction: direction)
                 }
             )
-            
-            TabView(selection: $viewModel.selectedPageIndex) {
-                ForEach(viewModel.dayPages) { page in
-                    dayPageView(for: page)
-                        .tag(page.id)
+
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(viewModel.dayPages) { page in
+                        dayPageView(for: page)
+                            .containerRelativeFrame(.horizontal)
+                    }
                 }
+                .scrollTargetLayout()
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $viewModel.scrollTargetDate)
+            .scrollIndicators(.hidden)
         }
     }
     
