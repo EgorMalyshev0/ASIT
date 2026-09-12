@@ -12,11 +12,24 @@ final class AddCourseViewModel {
     let takingYears = MedicationTakingYear.allCases
     var selectedMedicationId: String?
     var selectedYear: Int?
-    var startDate: Date
+    var startDate: Date {
+        didSet {
+            let duration = endDate.timeIntervalSince(oldValue)
+            endDate = min(startDate.addingTimeInterval(duration), maxEndDate)
+        }
+    }
     var endDate: Date
 
     var availableMedications: [Medication] {
         medicationService.medications
+    }
+
+    var maxEndDate: Date {
+        Calendar.current.date(byAdding: Constants.maxCourseDuration, to: startDate) ?? startDate
+    }
+
+    var minStartDate: Date {
+        Constants.minStartDate
     }
 
     var isFormValid: Bool {
@@ -50,5 +63,12 @@ final class AddCourseViewModel {
         )
 
         courseService.addCourse(course)
+    }
+}
+
+private extension AddCourseViewModel {
+    enum Constants {
+        static let maxCourseDuration = DateComponents(year: 1, month: 1)
+        static let minStartDate = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1)) ?? .distantPast
     }
 }

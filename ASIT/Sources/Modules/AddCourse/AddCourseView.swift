@@ -48,11 +48,21 @@ struct AddCourseView: View {
                     }
                 }
 
-                DatePicker("Дата начала курса", selection: $viewModel.startDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
+                DatePicker(
+                    "Дата начала курса",
+                    selection: $viewModel.startDate,
+                    in: viewModel.minStartDate...,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.compact)
 
-                DatePicker("Дата окончания курса", selection: $viewModel.endDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
+                DatePicker(
+                    "Дата окончания курса",
+                    selection: $viewModel.endDate,
+                    in: viewModel.startDate...viewModel.maxEndDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.compact)
             }
             .navigationTitle("Новый курс")
             .navigationBarTitleDisplayMode(.inline)
