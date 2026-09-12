@@ -41,6 +41,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Дешёвая оппортунистическая подстраховка на каждый возврат в foreground — не полагаемся
         // только на BGAppRefreshTask, у которого нет гарантий по времени срабатывания
         serviceProvider.courseService.refreshAllReminderSchedules()
+        #if DEBUG
+        BGTaskDiagnostics.recordRun(outcome: "foreground-refresh")
+        #endif
     }
 
     private func scheduleReminderRefresh() {
@@ -49,6 +52,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
         do {
             try BGTaskScheduler.shared.submit(request)
+            #if DEBUG
+            BGTaskDiagnostics.recordScheduled(earliestBeginDate: request.earliestBeginDate)
+            #endif
         } catch {
             print("Failed to schedule reminder refresh task: \(error)")
         }
@@ -58,7 +64,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Съедаем запрос сразу — на этот запуск он больше не годится, следующий планируем заново
         scheduleNextReminderRefresh()
 
+        #if DEBUG
+        BGTaskDiagnostics.recordRun(outcome: "started")
+        #endif
+
         task.expirationHandler = {
+            #if DEBUG
+            BGTaskDiagnostics.recordRun(outcome: "expired")
+            #endif
             task.setTaskCompleted(success: false)
         }
 
@@ -66,6 +79,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
         Task {
             await refreshTask.value
+            #if DEBUG
+            BGTaskDiagnostics.recordRun(outcome: "success")
+            #endif
             task.setTaskCompleted(success: true)
         }
     }
@@ -76,6 +92,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
         do {
             try BGTaskScheduler.shared.submit(request)
+            #if DEBUG
+            BGTaskDiagnostics.recordScheduled(earliestBeginDate: request.earliestBeginDate)
+            #endif
         } catch {
             print("Failed to schedule next reminder refresh task: \(error)")
         }

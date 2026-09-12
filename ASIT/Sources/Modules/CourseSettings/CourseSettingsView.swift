@@ -67,6 +67,12 @@ struct CourseSettingsView: View {
                     Text("Все данные курса, включая историю приёмов, будут удалены.")
                 }
             }
+
+            #if DEBUG
+            Section(header: Text("Debug")) {
+                DebugReminderScheduleView(course: viewModel.course)
+            }
+            #endif
         }
         .navigationTitle(viewModel.state.name)
         .animation(.default, value: viewModel.state.isReminderEnabled)
