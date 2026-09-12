@@ -70,9 +70,15 @@ final class NotificationService: NotificationServiceProtocol {
     func scheduleReminder(for course: Course, reminder: Reminder) async {
         let calendar = Calendar.current
         let now = Date()
+        let courseStart = calendar.startOfDay(for: course.startDate)
 
         for offset in 0..<Constants.reminderWindowDays {
             guard let day = calendar.date(byAdding: .day, value: offset, to: now) else { continue }
+
+            // Курс ещё не начался — не присылаем напоминания раньше даты его старта
+            if calendar.startOfDay(for: day) < courseStart {
+                continue
+            }
 
             if offset == 0 {
                 let reminderTimeToday = calendar.date(

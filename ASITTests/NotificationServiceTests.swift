@@ -12,20 +12,28 @@ import Foundation
 
 @MainActor
 struct NotificationServiceTests {
-    private func makeCourse(reminders: [Reminder] = []) -> Course {
+    private func makeCourse(startDate: Date = .now, reminders: [Reminder] = []) -> Course {
         let course = Course(
             medicationId: "staloral_birch_pollen",
             takingYear: .first,
-            startDate: .now,
+            startDate: startDate,
             endDate: .now.addingTimeInterval(60 * 24 * 60 * 60)
         )
         course.reminders = reminders
         return course
     }
 
+    /// Повторяет форматирование идентификатора конкретного дня окна из NotificationService —
+    /// сама реализация приватна, поэтому дублируем формат здесь, чтобы независимо проверить контракт
+    private func dailyIdentifier(for reminderId: UUID, date: Date, calendar: Calendar = .current) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        let dateKey = String(format: "%04d%02d%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+        return "\(reminderId.uuidString)-\(dateKey)"
+    }
+
     // MARK: - scheduleReminder
 
-    @Test func scheduleReminder_createsDailyRequestWithReminderIdAsIdentifier() async {
+    @Test func scheduleReminder_createsDailyRequestsWithDatedIdentifiers() async {
         let center = MockNotificationCenter()
         let service = NotificationService(notificationCenter: center)
         let reminder = Reminder(hour: 9, minute: 30, isEnabled: true)
@@ -33,11 +41,13 @@ struct NotificationServiceTests {
 
         await service.scheduleReminder(for: course, reminder: reminder)
 
-        #expect(center.addedRequests.count == 1)
-        #expect(center.addedRequests.first?.identifier == reminder.id.uuidString)
+        #expect(!center.addedRequests.isEmpty)
+        let identifiers = center.addedRequests.map(\.identifier)
+        #expect(identifiers.allSatisfy { $0.hasPrefix("\(reminder.id.uuidString)-") })
+        #expect(Set(identifiers).count == identifiers.count, "у каждого дня окна должен быть свой уникальный идентификатор")
     }
 
-    @Test func scheduleReminder_usesRepeatingCalendarTrigger_withReminderTime() async {
+    @Test func scheduleReminder_usesNonRepeatingCalendarTrigger_withReminderTime() async {
         let center = MockNotificationCenter()
         let service = NotificationService(notificationCenter: center)
         let reminder = Reminder(hour: 14, minute: 45, isEnabled: true)
@@ -46,7 +56,9 @@ struct NotificationServiceTests {
         await service.scheduleReminder(for: course, reminder: reminder)
 
         let trigger = center.addedRequests.first?.trigger as? UNCalendarNotificationTrigger
-        #expect(trigger?.repeats == true)
+        // Не repeating: каждый день окна — отдельный one-time триггер, чтобы можно было
+        // точечно отменить конкретный день, не трогая остальные (см. doc-комментарий scheduleReminder)
+        #expect(trigger?.repeats == false)
         #expect(trigger?.dateComponents.hour == 14)
         #expect(trigger?.dateComponents.minute == 45)
     }
@@ -78,6 +90,24 @@ struct NotificationServiceTests {
         #expect(badge == 4)
     }
 
+    @Test func scheduleReminder_skipsDaysBeforeCourseStartDate() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 9, minute: 30, isEnabled: true)
+        let calendar = Calendar.current
+        let futureStart = calendar.date(byAdding: .day, value: 3, to: .now)!
+        let course = makeCourse(startDate: futureStart, reminders: [reminder])
+
+        await service.scheduleReminder(for: course, reminder: reminder)
+
+        let scheduledDates = center.addedRequests
+            .compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.dateComponents }
+            .compactMap { calendar.date(from: $0) }
+
+        #expect(!scheduledDates.isEmpty)
+        #expect(scheduledDates.allSatisfy { $0 >= calendar.startOfDay(for: futureStart) })
+    }
+
     // MARK: - scheduleOneTimeReminder (snooze)
 
     @Test func scheduleOneTimeReminder_usesIdentifierDistinctFromDailyReminder() async {
@@ -86,9 +116,11 @@ struct NotificationServiceTests {
         let reminder = Reminder(hour: 10, minute: 0, isEnabled: true)
         let course = makeCourse(reminders: [reminder])
 
-        // Ежедневное уже запланировано
+        // Ежедневные (по одному на день окна) уже запланированы
         await service.scheduleReminder(for: course, reminder: reminder)
-        // Снус на него же
+        let dailyIdentifiers = Set(center.addedRequests.map(\.identifier))
+
+        // Снус на то же напоминание
         await service.scheduleOneTimeReminder(
             courseId: course.id,
             reminderId: reminder.id,
@@ -96,10 +128,15 @@ struct NotificationServiceTests {
             afterInterval: 3600
         )
 
-        #expect(center.addedRequests.count == 2)
-        let identifiers = Set(center.addedRequests.map(\.identifier))
-        #expect(identifiers.count == 2, "identifier снуса должен отличаться от ежедневного, иначе add() тихо заменит repeating-триггер на one-time")
-        #expect(identifiers.contains(reminder.id.uuidString))
+        let allIdentifiers = center.addedRequests.map(\.identifier)
+        #expect(allIdentifiers.count == dailyIdentifiers.count + 1)
+
+        let snoozeIdentifier = allIdentifiers.last
+        #expect(snoozeIdentifier == "\(reminder.id.uuidString)-snooze")
+        #expect(
+            !dailyIdentifiers.contains(snoozeIdentifier ?? ""),
+            "identifier снуса должен отличаться от любого ежедневного, иначе add() тихо заменит его триггер"
+        )
     }
 
     @Test func scheduleOneTimeReminder_usesNonRepeatingTimeIntervalTrigger() async {
@@ -144,9 +181,15 @@ struct NotificationServiceTests {
 
         service.cancelReminder(reminder)
 
-        let expectedIdentifiers = [reminder.id.uuidString, "\(reminder.id.uuidString)-snooze"]
-        #expect(center.removedPendingIdentifiers.last == expectedIdentifiers)
-        #expect(center.removedDeliveredIdentifiers.last == expectedIdentifiers)
+        let removedPending = center.removedPendingIdentifiers.last ?? []
+        let removedDelivered = center.removedDeliveredIdentifiers.last ?? []
+
+        // Отменяются: legacy-идентификатор (без даты, от старой схемы), снус,
+        // и датированные идентификаторы дней окна — одинаково для pending и delivered
+        #expect(removedPending == removedDelivered)
+        #expect(removedPending.contains(reminder.id.uuidString))
+        #expect(removedPending.contains("\(reminder.id.uuidString)-snooze"))
+        #expect(removedPending.contains(dailyIdentifier(for: reminder.id, date: .now)))
     }
 
     // MARK: - removeDeliveredNotifications(for:)
@@ -162,8 +205,8 @@ struct NotificationServiceTests {
 
         let removed = Set(center.removedDeliveredIdentifiers.last ?? [])
         #expect(removed == Set([
-            reminderA.id.uuidString, "\(reminderA.id.uuidString)-snooze",
-            reminderB.id.uuidString, "\(reminderB.id.uuidString)-snooze"
+            dailyIdentifier(for: reminderA.id, date: .now), "\(reminderA.id.uuidString)-snooze",
+            dailyIdentifier(for: reminderB.id, date: .now), "\(reminderB.id.uuidString)-snooze"
         ]))
     }
 
