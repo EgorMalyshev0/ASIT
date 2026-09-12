@@ -59,17 +59,47 @@ final class NotificationService: NotificationServiceProtocol {
 
     // MARK: - Schedule Notifications
 
-    /// Создаёт ежедневное напоминание для курса
+    /// Материализует окно индивидуальных ежедневных напоминаний для курса (см. `reminderWindowDays`).
+    /// Идемпотентен: повторный вызов (например, при дозаполнении окна на возврате в foreground)
+    /// просто заменяет pending-запросы с теми же идентификаторами — БЕЗ этого правила метод нельзя
+    /// было бы безопасно перевызывать: пересоздание pending-запроса с тем же id, что и уже доставленное
+    /// сегодняшнее уведомление, приводит к тому, что iOS убирает его из Notification Center. Поэтому
+    /// сегодняшний день пропускается не только когда приём уже был, но и когда время напоминания на
+    /// сегодня уже прошло — раз оно либо уже сработало, либо больше не может сработать, трогать его
+    /// identifier не нужно.
     func scheduleReminder(for course: Course, reminder: Reminder) async {
-        var dateComponents = DateComponents()
-        dateComponents.hour = reminder.hour
-        dateComponents.minute = reminder.minute
+        let calendar = Calendar.current
+        let now = Date()
 
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let content = await makeNotificationContent(courseId: course.id, reminderId: reminder.id)
-        let request = UNNotificationRequest(identifier: reminder.id.uuidString, content: content, trigger: trigger)
+        for offset in 0..<Constants.reminderWindowDays {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: now) else { continue }
 
-        await addNotificationRequest(request)
+            if offset == 0 {
+                let reminderTimeToday = calendar.date(
+                    bySettingHour: reminder.hour,
+                    minute: reminder.minute,
+                    second: 0,
+                    of: day
+                )
+                if course.hasIntake(on: day) || (reminderTimeToday.map { $0 <= now } ?? false) {
+                    continue
+                }
+            }
+
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: day)
+            dateComponents.hour = reminder.hour
+            dateComponents.minute = reminder.minute
+
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+            let content = await makeNotificationContent(courseId: course.id, reminderId: reminder.id)
+            let request = UNNotificationRequest(
+                identifier: dailyIdentifier(for: reminder.id, date: day),
+                content: content,
+                trigger: trigger
+            )
+
+            await addNotificationRequest(request)
+        }
     }
 
     /// Планирует одноразовое уведомление через указанный интервал (для snooze)
@@ -95,7 +125,25 @@ final class NotificationService: NotificationServiceProtocol {
         await addNotificationRequest(request)
     }
 
+    // MARK: - Cancel Today
+
+    /// Отменяет (pending и delivered) только сегодняшнее вхождение напоминания — вызывается при
+    /// отметке приёма, не затрагивает уведомления на другие дни окна.
+    func cancelTodayOccurrence(for reminder: Reminder, referenceDate: Date) {
+        let identifiers = [dailyIdentifier(for: reminder.id, date: referenceDate)]
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
+        notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+
     // MARK: - Private Helpers
+
+    /// Идентификатор для конкретного дня окна: тот же reminder может иметь несколько pending-запросов
+    /// одновременно (по одному на каждый день), поэтому дату кодируем прямо в идентификаторе.
+    private func dailyIdentifier(for reminderId: UUID, date: Date) -> String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        let dateKey = String(format: "%04d%02d%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+        return "\(reminderId.uuidString)-\(dateKey)"
+    }
 
     private func makeNotificationContent(
         courseId: UUID,
@@ -133,10 +181,22 @@ final class NotificationService: NotificationServiceProtocol {
         }
     }
 
-    /// Удаляет напоминание для курса (и ежедневное, и отложенное — если оригинал
-    /// отменяется или переносится, любой ожидающий snooze для него тоже должен исчезнуть)
+    /// Полностью удаляет напоминание для курса: все дни текущего окна, отложенный snooze, и
+    /// legacy-идентификатор без даты (от старой схемы с одним repeating-триггером — на случай,
+    /// если он остался висеть в системе после обновления приложения)
     func cancelReminder(_ reminder: Reminder) {
-        let identifiers = [reminder.id.uuidString, snoozeIdentifier(for: reminder.id)]
+        let calendar = Calendar.current
+        let today = Date()
+
+        var identifiers = [reminder.id.uuidString, snoozeIdentifier(for: reminder.id)]
+        // Запас по краям окна — безопасен, removePendingNotificationRequests просто игнорирует
+        // несуществующие идентификаторы
+        for offset in -3...(Constants.reminderWindowDays * 2) {
+            if let day = calendar.date(byAdding: .day, value: offset, to: today) {
+                identifiers.append(dailyIdentifier(for: reminder.id, date: day))
+            }
+        }
+
         notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
         notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
@@ -162,9 +222,21 @@ final class NotificationService: NotificationServiceProtocol {
 
     // MARK: - Remove Delivered
 
-    /// Удаляет доставленные уведомления для курса (при приёме)
+    /// Удаляет доставленные уведомления для курса (при приёме) — сегодняшнее вхождение каждого
+    /// reminder'а плюс snooze
     func removeDeliveredNotifications(for course: Course) {
-        let identifiers = course.reminders.flatMap { [$0.id.uuidString, snoozeIdentifier(for: $0.id)] }
+        let today = Date()
+        let identifiers = course.reminders.flatMap { [dailyIdentifier(for: $0.id, date: today), snoozeIdentifier(for: $0.id)] }
         notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+}
+
+private extension NotificationService {
+    enum Constants {
+        /// Сколько дней вперёд держим материализованными индивидуальные (неповторяющиеся)
+        /// уведомления. Не repeating-триггер — чтобы можно было точечно отменить конкретный день,
+        /// когда приём уже состоялся, не трогая остальные дни серии. Недели достаточно, чтобы
+        /// BGAppRefreshTask успел сработать хотя бы раз и дозаполнить окно дальше.
+        static let reminderWindowDays = 7
     }
 }

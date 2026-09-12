@@ -36,6 +36,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         self.modelContext = ModelContext(modelContainer)
         self.notificationService = notificationService
         fetchCourses()
+        refreshAllReminderSchedules()
     }
 
     #if DEBUG
@@ -91,6 +92,14 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         
         // Удаляем доставленные уведомления и обновляем badge
         notificationService.removeDeliveredNotifications(for: course)
+
+        // Если приём отмечен на сегодня — отменяем ещё не сработавшее сегодняшнее напоминание,
+        // чтобы оно не пришло после того, как приём уже состоялся
+        if Calendar.current.isDateInToday(intake.date) {
+            for reminder in course.reminders {
+                notificationService.cancelTodayOccurrence(for: reminder, referenceDate: intake.date)
+            }
+        }
 
         Task { @MainActor in
             await notificationService.updateBadgeCount()
@@ -150,11 +159,33 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
     /// Выполняет операции планирования/отмены уведомлений строго в порядке вызова,
     /// дожидаясь предыдущей операции перед началом следующей
-    private func enqueueReminderTask(_ operation: @escaping () async -> Void) {
+    @discardableResult
+    private func enqueueReminderTask(_ operation: @escaping () async -> Void) -> Task<Void, Never> {
         let previous = reminderSchedulingTask
-        reminderSchedulingTask = Task {
+        let task = Task {
             await previous?.value
             await operation()
+        }
+        reminderSchedulingTask = task
+        return task
+    }
+
+    /// Дозаполняет окно материализованных уведомлений для всех включённых напоминаний — вызывается
+    /// при холодном старте, возврате приложения в foreground и по BGAppRefreshTask, чтобы окно не
+    /// истощалось, если пользователь долго не открывает приложение и не взаимодействует с пушами.
+    /// Идемпотентен (scheduleReminder безопасно перевызывать) — дублирующиеся запросы просто
+    /// заменяют существующие с теми же идентификаторами. Возвращает Task, чтобы вызывающий (например,
+    /// обработчик BGAppRefreshTask) при желании мог дождаться завершения.
+    @discardableResult
+    func refreshAllReminderSchedules() -> Task<Void, Never> {
+        let enabledPairs = courses.flatMap { course in
+            course.reminders.filter(\.isEnabled).map { (course, $0) }
+        }
+
+        return enqueueReminderTask { [notificationService] in
+            for (course, reminder) in enabledPairs {
+                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            }
         }
     }
 

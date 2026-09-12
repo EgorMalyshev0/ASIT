@@ -12,6 +12,7 @@ import UserNotifications
 final class MockNotificationService: NotificationServiceProtocol {
     private(set) var scheduledReminders: [(course: Course, reminder: Reminder)] = []
     private(set) var canceledReminders: [Reminder] = []
+    private(set) var canceledTodayOccurrences: [(reminder: Reminder, referenceDate: Date)] = []
     private(set) var scheduledOneTimeReminders: [(courseId: UUID, reminderId: UUID, originalDate: Date, interval: TimeInterval)] = []
     private(set) var coursesWithRemovedDeliveredNotifications: [Course] = []
     private(set) var updateBadgeCountCallCount = 0
@@ -47,6 +48,11 @@ final class MockNotificationService: NotificationServiceProtocol {
     func cancelReminder(_ reminder: Reminder) {
         canceledReminders.append(reminder)
         callLog.append("cancel:\(reminder.id)")
+    }
+
+    func cancelTodayOccurrence(for reminder: Reminder, referenceDate: Date) {
+        canceledTodayOccurrences.append((reminder, referenceDate))
+        callLog.append("cancelToday:\(reminder.id)")
     }
 
     func removeDeliveredNotifications(for course: Course) {
