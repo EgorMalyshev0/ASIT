@@ -18,20 +18,19 @@ final class FullCalendarViewModel {
 
     // MARK: - Public Methods
 
+    /// Минимальная дата — начало самого раннего курса, либо сегодня, если курсов нет
+    var minDate: Date {
+        CourseCalendarRange.minDate(courses: courseService.courses, calendar: calendar)
+    }
+
     /// Максимальная дата — конец следующей недели после текущей
     var maxDate: Date {
-        let today = calendar.startOfDay(for: Date())
-        guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)),
-              let nextWeekEnd = calendar.date(byAdding: .day, value: Constants.visibleFutureDays, to: weekStart) else {
-            return today
-        }
-        return nextWeekEnd
+        CourseCalendarRange.maxDate(calendar: calendar)
     }
 
     /// Генерирует месяцы для отображения (от начала самого раннего курса до maxDate)
     var months: [Date] {
-        let earliestCourseStart = courseService.courses.map { $0.startDate }.min() ?? Date()
-        let startMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: earliestCourseStart)) ?? earliestCourseStart
+        let startMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: minDate)) ?? minDate
         let endMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: maxDate)) ?? maxDate
 
         var months: [Date] = []
@@ -90,13 +89,5 @@ final class FullCalendarViewModel {
                    !course.isCompleted &&
                    !course.isPaused
         }
-    }
-}
-
-// MARK: - Constants
-
-private extension FullCalendarViewModel {
-    enum Constants {
-        static let visibleFutureDays = 13
     }
 }

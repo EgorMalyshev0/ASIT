@@ -60,7 +60,7 @@ final class MainViewModel {
         rebuildDayPages(around: today)
         rebuildWeekPages(around: today)
         scrollTargetDate = today
-        weekScrollTarget = weekStart(for: today)
+        weekScrollTarget = calendar.mondayWeekStart(for: today)
     }
 
     // MARK: - Public Methods
@@ -135,7 +135,7 @@ final class MainViewModel {
         ensureWeekWindow(covers: normalized)
         refreshWeekPagesContent()
 
-        let newWeekStart = weekStart(for: normalized)
+        let newWeekStart = calendar.mondayWeekStart(for: normalized)
         guard newWeekStart != weekScrollTarget else {
             return
         }
@@ -162,7 +162,7 @@ final class MainViewModel {
 
     /// Пользователь долистал горизонтальный скролл недель до новой недели
     private func handleWeekScrollChange(to newWeekStart: Date) {
-        let currentWeekStart = weekStart(for: selectedDate)
+        let currentWeekStart = calendar.mondayWeekStart(for: selectedDate)
         guard !calendar.isDate(newWeekStart, inSameDayAs: currentWeekStart) else {
             return
         }
@@ -178,7 +178,7 @@ final class MainViewModel {
     private func syncScrollTargets() {
         isUpdatingFromDateSelection = true
         scrollTargetDate = selectedDate
-        weekScrollTarget = weekStart(for: selectedDate)
+        weekScrollTarget = calendar.mondayWeekStart(for: selectedDate)
         isUpdatingFromDateSelection = false
     }
 
@@ -190,7 +190,7 @@ final class MainViewModel {
     }
 
     private func ensureDayWindow(covers date: Date) {
-        let target = calendar.startOfDay(for: date)
+        let target = clampedDate(calendar.startOfDay(for: date))
         guard let first = dayPages.first?.date, let last = dayPages.last?.date else {
             rebuildDayPages(around: target)
             return
@@ -206,8 +206,8 @@ final class MainViewModel {
 
         if daysFromStart < Constants.dayWindowExtendThreshold {
             let newPages: [DayPageModel] = (1...Constants.dayWindowExtendChunk).reversed().compactMap { offset in
-                calendar.date(byAdding: .day, value: -offset, to: first).map {
-                    DayPageModel(date: $0, courses: activeCourses(for: $0))
+                calendar.date(byAdding: .day, value: -offset, to: first).flatMap { candidate in
+                    candidate >= minAllowedDate ? DayPageModel(date: candidate, courses: activeCourses(for: candidate)) : nil
                 }
             }
             dayPages.insert(contentsOf: newPages, at: 0)
@@ -215,8 +215,8 @@ final class MainViewModel {
 
         if daysFromEnd < Constants.dayWindowExtendThreshold {
             let newPages: [DayPageModel] = (1...Constants.dayWindowExtendChunk).compactMap { offset in
-                calendar.date(byAdding: .day, value: offset, to: last).map {
-                    DayPageModel(date: $0, courses: activeCourses(for: $0))
+                calendar.date(byAdding: .day, value: offset, to: last).flatMap { candidate in
+                    candidate <= maxAllowedDate ? DayPageModel(date: candidate, courses: activeCourses(for: candidate)) : nil
                 }
             }
             dayPages.append(contentsOf: newPages)
@@ -244,7 +244,7 @@ final class MainViewModel {
     }
 
     private func ensureWeekWindow(covers date: Date) {
-        let target = weekStart(for: date)
+        let target = clampedWeekStart(calendar.mondayWeekStart(for: date))
         guard let first = weekPages.first?.weekStart, let last = weekPages.last?.weekStart else {
             rebuildWeekPages(around: target)
             return
@@ -260,14 +260,18 @@ final class MainViewModel {
 
         if weeksFromStart < Constants.weekWindowExtendThreshold {
             let newPages: [WeekPageModel] = (1...Constants.weekWindowExtendChunk).reversed().compactMap { offset in
-                calendar.date(byAdding: .day, value: -offset * 7, to: first).map(makeWeekPageModel)
+                calendar.date(byAdding: .day, value: -offset * 7, to: first).flatMap { candidate in
+                    candidate >= minAllowedWeekStart ? makeWeekPageModel(weekStart: candidate) : nil
+                }
             }
             weekPages.insert(contentsOf: newPages, at: 0)
         }
 
         if weeksFromEnd < Constants.weekWindowExtendThreshold {
             let newPages: [WeekPageModel] = (1...Constants.weekWindowExtendChunk).compactMap { offset in
-                calendar.date(byAdding: .day, value: offset * 7, to: last).map(makeWeekPageModel)
+                calendar.date(byAdding: .day, value: offset * 7, to: last).flatMap { candidate in
+                    candidate <= maxAllowedWeekStart ? makeWeekPageModel(weekStart: candidate) : nil
+                }
             }
             weekPages.append(contentsOf: newPages)
         }
@@ -301,32 +305,48 @@ final class MainViewModel {
     }
 
     private func rebuildDayPages(around date: Date) {
-        let center = calendar.startOfDay(for: date)
+        let center = clampedDate(calendar.startOfDay(for: date))
         let dates = (-Constants.dayWindowRadius...Constants.dayWindowRadius).compactMap {
             calendar.date(byAdding: .day, value: $0, to: center)
-        }
+        }.filter { $0 >= minAllowedDate && $0 <= maxAllowedDate }
         dayPages = dates.map { DayPageModel(date: $0, courses: activeCourses(for: $0)) }
     }
 
     private func rebuildWeekPages(around date: Date) {
-        let center = weekStart(for: date)
+        let center = clampedWeekStart(calendar.mondayWeekStart(for: date))
         let starts = (-Constants.weekWindowRadius...Constants.weekWindowRadius).compactMap {
             calendar.date(byAdding: .day, value: $0 * 7, to: center)
-        }
+        }.filter { $0 >= minAllowedWeekStart && $0 <= maxAllowedWeekStart }
         weekPages = starts.map(makeWeekPageModel)
     }
 
-    /// Начало недели (понедельник), независимо от локали устройства.
-    /// `yearForWeekOfYear`/`weekOfYear` следуют за `calendar.firstWeekday`, который
-    /// в некоторых локалях — воскресенье, а вся остальная вёрстка (шапка недели,
-    /// сетка FullCalendarView) жёстко считает неделю начинающейся с понедельника.
-    /// Расхождение между ними — причина того, что переход Вс → Пн не всегда
-    /// засчитывался как смена недели.
-    private func weekStart(for date: Date) -> Date {
-        let startOfDay = calendar.startOfDay(for: date)
-        let weekday = calendar.component(.weekday, from: startOfDay) // 1 = вс, ..., 7 = сб
-        let daysSinceMonday = (weekday + 5) % 7
-        return calendar.date(byAdding: .day, value: -daysSinceMonday, to: startOfDay) ?? startOfDay
+    /// Дата, ограниченная тем же диапазоном, что и основной (полный) календарь
+    private func clampedDate(_ date: Date) -> Date {
+        min(max(date, minAllowedDate), maxAllowedDate)
+    }
+
+    /// Начало недели, ограниченное тем же диапазоном, что и основной (полный) календарь
+    private func clampedWeekStart(_ weekStart: Date) -> Date {
+        min(max(weekStart, minAllowedWeekStart), maxAllowedWeekStart)
+    }
+
+    /// Нижняя и верхняя границы диапазона — та же логика, что и в FullCalendarViewModel,
+    /// вынесенная в CourseCalendarRange, чтобы главный, дневной и недельный календари
+    /// были ограничены одинаково.
+    private var minAllowedDate: Date {
+        CourseCalendarRange.minDate(courses: courseService.courses, calendar: calendar)
+    }
+
+    private var maxAllowedDate: Date {
+        CourseCalendarRange.maxDate(calendar: calendar)
+    }
+
+    private var minAllowedWeekStart: Date {
+        calendar.mondayWeekStart(for: minAllowedDate)
+    }
+
+    private var maxAllowedWeekStart: Date {
+        calendar.mondayWeekStart(for: maxAllowedDate)
     }
 
     private func makeWeekPageModel(weekStart: Date) -> WeekPageModel {
@@ -352,7 +372,8 @@ final class MainViewModel {
             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
             isToday: calendar.isDateInToday(date),
             allIntakesTaken: allTaken,
-            hasCourses: !activeCourses.isEmpty
+            hasCourses: !activeCourses.isEmpty,
+            isSelectable: date >= minAllowedDate && date <= maxAllowedDate
         )
     }
 

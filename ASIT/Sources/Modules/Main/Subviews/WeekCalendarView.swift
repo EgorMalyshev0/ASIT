@@ -64,6 +64,9 @@ private struct WeekRow: View {
             ForEach(days) { day in
                 DayCell(day: day)
                     .onTapGesture {
+                        guard day.isSelectable else {
+                            return
+                        }
                         withAnimation {
                             onDaySelected(day)
                         }
@@ -83,7 +86,7 @@ private struct DayCell: View {
         VStack(spacing: 4) {
             Text(day.dayNumber)
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(day.isSelected ? .white : (day.isToday ? .blue : .primary))
+                .foregroundStyle(day.isSelectable ? (day.isSelected ? .white : (day.isToday ? .blue : .primary)) : Color.primary.opacity(0.3))
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
@@ -119,7 +122,8 @@ private struct DayCell: View {
                 isSelected: dayOffset == 3 && weekOffset == 0,
                 isToday: calendar.isDateInToday(date),
                 allIntakesTaken: dayOffset % 3 == 0,
-                hasCourses: true
+                hasCourses: true,
+                isSelectable: true
             )
         }
         return WeekPageModel(weekStart: start, days: days)

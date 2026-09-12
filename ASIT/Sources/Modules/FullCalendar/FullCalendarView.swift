@@ -107,11 +107,11 @@ private struct MonthView: View {
                             date: date,
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isToday: calendar.isDateInToday(date),
-                            isDisabled: date > viewModel.maxDate,
+                            isDisabled: date < viewModel.minDate || date > viewModel.maxDate,
                             showDot: viewModel.allCoursesHaveIntake(on: date)
                         )
                         .onTapGesture {
-                            if date <= viewModel.maxDate {
+                            if date >= viewModel.minDate && date <= viewModel.maxDate {
                                 onDateSelected(date)
                             }
                         }

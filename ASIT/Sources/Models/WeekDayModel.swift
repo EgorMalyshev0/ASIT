@@ -16,5 +16,6 @@ struct WeekDayModel: Identifiable, Equatable {
     let isToday: Bool
     let allIntakesTaken: Bool
     let hasCourses: Bool
+    let isSelectable: Bool
 }
 
