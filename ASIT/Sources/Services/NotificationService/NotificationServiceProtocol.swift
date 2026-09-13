@@ -19,8 +19,7 @@ protocol NotificationServiceProtocol: AnyObject {
         afterInterval interval: TimeInterval
     ) async
     func cancelReminder(_ reminder: Reminder)
-    func cancelTodayOccurrence(for reminder: Reminder, referenceDate: Date)
-    func removeDeliveredNotifications(for course: Course)
+    func removeNotifications(forCourseId courseId: UUID, upTo date: Date) async
     @MainActor func updateBadgeCount() async
     @MainActor func clearBadge() async
 }

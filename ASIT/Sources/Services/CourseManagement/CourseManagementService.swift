@@ -103,18 +103,13 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
         
-        // Удаляем доставленные уведомления и обновляем badge
-        notificationService.removeDeliveredNotifications(for: course)
-
-        // Если приём отмечен на сегодня — отменяем ещё не сработавшее сегодняшнее напоминание,
-        // чтобы оно не пришло после того, как приём уже состоялся
-        if Calendar.current.isDateInToday(intake.date) {
-            for reminder in course.reminders {
-                notificationService.cancelTodayOccurrence(for: reminder, referenceDate: intake.date)
-            }
-        }
-
-        Task { @MainActor in
+        // Убираем уведомления курса (и ещё не пришедшие, и уже доставленные) на день приёма и более
+        // ранние — приём за этот день есть, а более ранние без приёма считаются пропущенными.
+        // Badge обновляем уже после удаления
+        let courseId = course.id
+        let intakeDate = intake.date
+        enqueueReminderTask { [notificationService] in
+            await notificationService.removeNotifications(forCourseId: courseId, upTo: intakeDate)
             await notificationService.updateBadgeCount()
         }
     }

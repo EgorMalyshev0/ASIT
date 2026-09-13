@@ -136,14 +136,25 @@ final class NotificationService: NotificationServiceProtocol {
         await addNotificationRequest(request)
     }
 
-    // MARK: - Cancel Today
+    // MARK: - Remove On Intake
 
-    /// Отменяет (pending и delivered) только сегодняшнее вхождение напоминания — вызывается при
-    /// отметке приёма, не затрагивает уведомления на другие дни окна.
-    func cancelTodayOccurrence(for reminder: Reminder, referenceDate: Date) {
-        let identifiers = [dailyIdentifier(for: reminder.id, date: referenceDate)]
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
-        notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
+    /// Убирает уведомления курса (pending и delivered) на указанный день и все более ранние —
+    /// вызывается при отметке приёма. Приём за этот день уже есть, а более ранние дни без приёма
+    /// считаются пропущенными: например, если вчерашний snooze ещё не пришёл (или уже висит в
+    /// Notification Center), а приём отмечен за сегодня, напоминать про вчера больше не нужно.
+    /// Уведомления на более поздние дни не трогаем: отметка вчерашнего приёма не отменяет сегодняшнее.
+    func removeNotifications(forCourseId courseId: UUID, upTo date: Date) async {
+        let pendingRequests = await notificationCenter.pendingNotificationRequests()
+        let pendingIdentifiers = identifiers(of: pendingRequests, courseId: courseId, upTo: date)
+        if !pendingIdentifiers.isEmpty {
+            notificationCenter.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
+        }
+
+        let deliveredRequests = await notificationCenter.deliveredNotificationRequests()
+        let deliveredIdentifiers = identifiers(of: deliveredRequests, courseId: courseId, upTo: date)
+        if !deliveredIdentifiers.isEmpty {
+            notificationCenter.removeDeliveredNotifications(withIdentifiers: deliveredIdentifiers)
+        }
     }
 
     // MARK: - Private Helpers
@@ -154,6 +165,31 @@ final class NotificationService: NotificationServiceProtocol {
         let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
         let dateKey = String(format: "%04d%02d%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
         return "\(reminderId.uuidString)-\(dateKey)"
+    }
+
+    private func identifiers(of requests: [UNNotificationRequest], courseId: UUID, upTo date: Date) -> [String] {
+        let calendar = Calendar.current
+        let lastDay = calendar.startOfDay(for: date)
+        return requests
+            .filter { $0.content.userInfo["courseId"] as? String == courseId.uuidString }
+            .filter { request in
+                guard let day = scheduledDay(of: request) else { return true }
+                return calendar.startOfDay(for: day) <= lastDay
+            }
+            .map(\.identifier)
+    }
+
+    /// День, для которого запрос планировался: originalDate у snooze, дата календарного триггера у
+    /// ежедневного. nil — если определить не удалось (такой запрос при приёме просто удаляется)
+    private func scheduledDay(of request: UNNotificationRequest) -> Date? {
+        if let timestamp = request.content.userInfo["originalDate"] as? TimeInterval {
+            return Date(timeIntervalSince1970: timestamp)
+        }
+        guard let trigger = request.trigger as? UNCalendarNotificationTrigger,
+              trigger.dateComponents.year != nil else {
+            return nil
+        }
+        return Calendar.current.date(from: trigger.dateComponents)
     }
 
     private func makeNotificationContent(
@@ -229,16 +265,6 @@ final class NotificationService: NotificationServiceProtocol {
     @MainActor
     func clearBadge() async {
         try? await notificationCenter.setBadgeCount(0)
-    }
-
-    // MARK: - Remove Delivered
-
-    /// Удаляет доставленные уведомления для курса (при приёме) — сегодняшнее вхождение каждого
-    /// reminder'а плюс snooze
-    func removeDeliveredNotifications(for course: Course) {
-        let today = Date()
-        let identifiers = course.reminders.flatMap { [dailyIdentifier(for: $0.id, date: today), snoozeIdentifier(for: $0.id)] }
-        notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 }
 

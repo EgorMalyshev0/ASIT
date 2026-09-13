@@ -12,9 +12,8 @@ import UserNotifications
 final class MockNotificationService: NotificationServiceProtocol {
     private(set) var scheduledReminders: [(course: Course, reminder: Reminder)] = []
     private(set) var canceledReminders: [Reminder] = []
-    private(set) var canceledTodayOccurrences: [(reminder: Reminder, referenceDate: Date)] = []
+    private(set) var removedNotifications: [(courseId: UUID, upToDate: Date)] = []
     private(set) var scheduledOneTimeReminders: [(courseId: UUID, reminderId: UUID, originalDate: Date, interval: TimeInterval)] = []
-    private(set) var coursesWithRemovedDeliveredNotifications: [Course] = []
     private(set) var updateBadgeCountCallCount = 0
     private(set) var clearBadgeCallCount = 0
     /// Порядок вызовов вперемешку — для проверки, что асинхронные операции не переупорядочиваются
@@ -50,14 +49,9 @@ final class MockNotificationService: NotificationServiceProtocol {
         callLog.append("cancel:\(reminder.id)")
     }
 
-    func cancelTodayOccurrence(for reminder: Reminder, referenceDate: Date) {
-        canceledTodayOccurrences.append((reminder, referenceDate))
-        callLog.append("cancelToday:\(reminder.id)")
-    }
-
-    func removeDeliveredNotifications(for course: Course) {
-        coursesWithRemovedDeliveredNotifications.append(course)
-        callLog.append("removeDelivered:\(course.id)")
+    func removeNotifications(forCourseId courseId: UUID, upTo date: Date) async {
+        removedNotifications.append((courseId, date))
+        callLog.append("removeNotifications:\(courseId)")
     }
 
     @MainActor

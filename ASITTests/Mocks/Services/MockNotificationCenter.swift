@@ -20,6 +20,7 @@ final class MockNotificationCenter: NotificationCenterProviding, @unchecked Send
 
     var authorizationStatusToReturn: UNAuthorizationStatus = .authorized
     var deliveredCountToReturn = 0
+    var deliveredRequests: [UNNotificationRequest] = []
     var requestAuthorizationResult: Result<Bool, Error> = .success(true)
     var addRequestError: Error?
 
@@ -43,6 +44,10 @@ final class MockNotificationCenter: NotificationCenterProviding, @unchecked Send
         addedRequests.append(request)
     }
 
+    func pendingNotificationRequests() async -> [UNNotificationRequest] {
+        addedRequests
+    }
+
     func deliveredNotificationsCount() async -> Int {
         deliveredCountToReturn
     }
@@ -52,8 +57,13 @@ final class MockNotificationCenter: NotificationCenterProviding, @unchecked Send
         addedRequests.removeAll { identifiers.contains($0.identifier) }
     }
 
+    func deliveredNotificationRequests() async -> [UNNotificationRequest] {
+        deliveredRequests
+    }
+
     func removeDeliveredNotifications(withIdentifiers identifiers: [String]) {
         removedDeliveredIdentifiers.append(identifiers)
+        deliveredRequests.removeAll { identifiers.contains($0.identifier) }
     }
 
     func setBadgeCount(_ count: Int) async throws {

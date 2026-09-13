@@ -71,6 +71,6 @@ private extension AddCourseViewModel {
     enum Constants {
         static let maxCourseDuration = DateComponents(year: 1, month: 1)
         static let maxStartDateOffset = DateComponents(month: 1)
-        static let minStartDate =Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1)) ?? .distantPast
+        static let minStartDate = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1)) ?? .distantPast
     }
 }

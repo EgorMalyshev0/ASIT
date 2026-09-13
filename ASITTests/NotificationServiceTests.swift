@@ -228,22 +228,103 @@ struct NotificationServiceTests {
         #expect(removedPending.contains(dailyIdentifier(for: reminder.id, date: .now)))
     }
 
-    // MARK: - removeDeliveredNotifications(for:)
+    // MARK: - removeNotifications(forCourseId:upTo:)
 
-    @Test func removeDeliveredNotifications_removesDailyAndSnoozeIdentifiers_forEveryReminder() {
+    private func makeDailyRequest(reminderId: UUID, courseId: UUID, day: Date) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.userInfo = ["courseId": courseId.uuidString, "reminderId": reminderId.uuidString]
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: day)
+        components.hour = 23
+        return UNNotificationRequest(
+            identifier: dailyIdentifier(for: reminderId, date: day),
+            content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        )
+    }
+
+    @Test func removeNotifications_removesDeliveredForIntakeDayAndEarlier_keepsLaterAndOtherCourses() async {
         let center = MockNotificationCenter()
         let service = NotificationService(notificationCenter: center)
-        let reminderA = Reminder(hour: 9, minute: 0, isEnabled: true)
-        let reminderB = Reminder(hour: 20, minute: 0, isEnabled: true)
-        let course = makeCourse(reminders: [reminderA, reminderB])
+        let calendar = Calendar.current
+        let courseId = UUID()
+        let reminderId = UUID()
+        let today = Date.now
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: today)!
+        let otherCourseRequest = makeDailyRequest(reminderId: UUID(), courseId: UUID(), day: twoDaysAgo)
+        center.deliveredRequests = [
+            makeDailyRequest(reminderId: reminderId, courseId: courseId, day: twoDaysAgo),
+            makeDailyRequest(reminderId: reminderId, courseId: courseId, day: yesterday),
+            makeDailyRequest(reminderId: reminderId, courseId: courseId, day: today),
+            otherCourseRequest
+        ]
 
-        service.removeDeliveredNotifications(for: course)
+        await service.removeNotifications(forCourseId: courseId, upTo: yesterday)
 
-        let removed = Set(center.removedDeliveredIdentifiers.last ?? [])
-        #expect(removed == Set([
-            dailyIdentifier(for: reminderA.id, date: .now), "\(reminderA.id.uuidString)-snooze",
-            dailyIdentifier(for: reminderB.id, date: .now), "\(reminderB.id.uuidString)-snooze"
-        ]))
+        #expect(Set(center.deliveredRequests.map(\.identifier)) == [
+            dailyIdentifier(for: reminderId, date: today),
+            otherCourseRequest.identifier
+        ])
+    }
+
+    @Test func removeNotifications_removesDeliveredSnoozeFromEarlierDay() async {
+        // Вчерашний snooze уже висит в Notification Center, приём отмечен за сегодня — вчерашний
+        // пропущен, уведомление убираем
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let courseId = UUID()
+        let reminderId = UUID()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+        await service.scheduleOneTimeReminder(courseId: courseId, reminderId: reminderId, originalDate: yesterday, afterInterval: 3600)
+        center.deliveredRequests = center.addedRequests
+
+        await service.removeNotifications(forCourseId: courseId, upTo: .now)
+
+        #expect(center.deliveredRequests.isEmpty)
+    }
+
+    @Test func removeNotifications_removesPendingSnoozeForSameOrEarlierDay() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let courseId = UUID()
+        let reminderId = UUID()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+        let originalDate = Calendar.current.date(bySettingHour: 23, minute: 30, second: 0, of: yesterday)!
+        await service.scheduleOneTimeReminder(courseId: courseId, reminderId: reminderId, originalDate: originalDate, afterInterval: 3600)
+
+        await service.removeNotifications(forCourseId: courseId, upTo: .now)
+
+        #expect(center.request(identifier: "\(reminderId.uuidString)-snooze") == nil)
+    }
+
+    @Test func removeNotifications_keepsPendingForLaterDays() async {
+        // Отметка вчерашнего приёма не отменяет ни snooze, ни ежедневные напоминания на сегодня и дальше
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 23, minute: 59, isEnabled: true)
+        let course = makeCourse(reminders: [reminder])
+        await service.scheduleReminder(for: course, reminder: reminder)
+        await service.scheduleOneTimeReminder(courseId: course.id, reminderId: reminder.id, originalDate: .now, afterInterval: 3600)
+        let pendingBefore = center.addedRequests.map(\.identifier)
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+
+        await service.removeNotifications(forCourseId: course.id, upTo: yesterday)
+
+        #expect(center.addedRequests.map(\.identifier) == pendingBefore)
+    }
+
+    @Test func removeNotifications_today_removesTodaysPendingDaily_keepsTomorrow() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 23, minute: 59, isEnabled: true)
+        let course = makeCourse(startDate: Calendar.current.date(byAdding: .day, value: -1, to: .now)!, reminders: [reminder])
+        await service.scheduleReminder(for: course, reminder: reminder)
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now)!
+
+        await service.removeNotifications(forCourseId: course.id, upTo: .now)
+
+        #expect(center.request(identifier: dailyIdentifier(for: reminder.id, date: .now)) == nil)
+        #expect(center.request(identifier: dailyIdentifier(for: reminder.id, date: tomorrow)) != nil)
     }
 
     // MARK: - Authorization

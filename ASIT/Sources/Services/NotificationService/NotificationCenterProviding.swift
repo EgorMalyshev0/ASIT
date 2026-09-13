@@ -14,7 +14,9 @@ protocol NotificationCenterProviding {
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
     func authorizationStatus() async -> UNAuthorizationStatus
     func add(_ request: UNNotificationRequest) async throws
+    func pendingNotificationRequests() async -> [UNNotificationRequest]
     func deliveredNotificationsCount() async -> Int
+    func deliveredNotificationRequests() async -> [UNNotificationRequest]
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
     func removeDeliveredNotifications(withIdentifiers identifiers: [String])
     func setBadgeCount(_ count: Int) async throws
@@ -28,5 +30,9 @@ extension UNUserNotificationCenter: NotificationCenterProviding {
 
     func deliveredNotificationsCount() async -> Int {
         await deliveredNotifications().count
+    }
+
+    func deliveredNotificationRequests() async -> [UNNotificationRequest] {
+        await deliveredNotifications().map(\.request)
     }
 }

@@ -117,8 +117,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return [.banner, .list, .sound]
         }
 
-        // Если на дату уведомления уже был приём — не показываем
-        if course.hasIntake(on: notification.date) {
+        // Если на день, для которого уведомление планировалось, уже был приём — не показываем
+        if course.hasIntake(on: Self.intendedDate(of: notification)) {
             return []
         }
 
@@ -139,17 +139,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return
         }
         
-        // Дата доставки уведомления — к этому дню относится приём
-        let notificationDate = response.notification.date
-        
-        // Дата для записи приёма: originalDate (если было отложено) или дата доставки
-        let intakeDate: Date
-        if let timestamp = userInfo["originalDate"] as? TimeInterval {
-            intakeDate = Date(timeIntervalSince1970: timestamp)
-        } else {
-            intakeDate = notificationDate
-        }
-        
+        // Приём относится к дню, для которого уведомление планировалось изначально, даже если
+        // отложенное уведомление пришло уже после полуночи
+        let intakeDate = Self.intendedDate(of: response.notification)
+
         switch response.actionIdentifier {
         case NotificationActionIdentifier.medicationTaken:
             serviceProvider.courseService.handleTakenActionFromPush(courseId: courseId, date: intakeDate)
@@ -177,6 +170,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         default:
             break
         }
+    }
+
+    /// Дата, для которой уведомление планировалось: originalDate у отложенного (snooze) — он
+    /// переносится и при повторном откладывании — или дата доставки у обычного ежедневного.
+    /// Snooze в 23:00 доставляется уже в 00:00 следующего дня, но относится к предыдущему.
+    private static func intendedDate(of notification: UNNotification) -> Date {
+        if let timestamp = notification.request.content.userInfo["originalDate"] as? TimeInterval {
+            return Date(timeIntervalSince1970: timestamp)
+        }
+        return notification.date
     }
 }
 

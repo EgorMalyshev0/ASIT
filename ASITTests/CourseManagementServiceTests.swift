@@ -135,26 +135,21 @@ struct CourseManagementServiceTests {
 
     // MARK: - addIntake
 
-    @Test func addIntake_removesDeliveredNotifications_andUpdatesBadge() async {
+    @Test func addIntake_removesCourseNotificationsUpToIntakeDay_thenUpdatesBadge() async {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeCourse()
+        course.startDate = Calendar.current.date(byAdding: .day, value: -5, to: .now)!
         service.addCourse(course)
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
 
-        let intake = Intake(
-            date: .now,
-            medicationId: course.medicationId,
-            variantId: "staloral_birch_pollen_10_ir_ml",
-            dosage: Dosage(type: .press, amount: 1),
-            comment: nil
-        )
-        service.addIntake(intake, to: course)
+        service.addIntake(makeIntake(for: course, date: yesterday), to: course)
+        await service.waitForPendingReminderTask()
 
-        // updateBadgeCount запускается в отдельном Task { @MainActor in ... } — дождаться следующего runloop tick
-        await Task.yield()
-
-        #expect(notificationService.coursesWithRemovedDeliveredNotifications.count == 1)
-        #expect(notificationService.coursesWithRemovedDeliveredNotifications.first?.id == course.id)
+        #expect(notificationService.removedNotifications.count == 1)
+        #expect(notificationService.removedNotifications.first?.courseId == course.id)
+        #expect(notificationService.removedNotifications.first?.upToDate == yesterday)
+        #expect(notificationService.updateBadgeCountCallCount == 1)
     }
 
     // MARK: - importCourse
@@ -316,6 +311,27 @@ struct CourseManagementServiceTests {
 
         #expect(course.intakes.count == 1)
         #expect(!course.hasIntake(on: .now))
+    }
+
+    @Test func handleTakenActionFromPush_snoozedPastMidnight_recordsIntakeOnOriginalDay() async {
+        // Snooze в 23:00 доставляется в 00:00 — приём должен лечь на исходный (вчерашний) день
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let calendar = Calendar.current
+        let course = makeCourse()
+        course.startDate = calendar.date(byAdding: .day, value: -5, to: .now)!
+        service.addCourse(course)
+        service.addIntake(makeIntake(for: course, date: calendar.date(byAdding: .day, value: -3, to: .now)!), to: course)
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: .now)!
+        let originalDate = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: yesterday)!
+
+        service.handleTakenActionFromPush(courseId: course.id, date: originalDate)
+
+        await service.waitForPendingReminderTask()
+
+        #expect(course.hasIntake(on: yesterday))
+        #expect(!course.hasIntake(on: .now))
+        #expect(notificationService.removedNotifications.last?.upToDate == originalDate)
     }
 
     // MARK: - resumeCourse
