@@ -10,6 +10,7 @@ import Foundation
 @Observable
 final class AddCourseViewModel {
     let takingYears = MedicationTakingYear.allCases
+    let maxStartDate: Date
     var selectedMedicationId: String?
     var selectedYear: Int?
     var startDate: Date {
@@ -42,6 +43,7 @@ final class AddCourseViewModel {
     init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         self.courseService = courseService
         self.medicationService = medicationService
+        maxStartDate = Calendar.current.date(byAdding: Constants.maxStartDateOffset, to: .now) ?? .now
         startDate = .now
         endDate = .now.addingTimeInterval(60 * 60 * 24 * 180)
     }
@@ -68,6 +70,7 @@ final class AddCourseViewModel {
 private extension AddCourseViewModel {
     enum Constants {
         static let maxCourseDuration = DateComponents(year: 1, month: 1)
-        static let minStartDate = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1)) ?? .distantPast
+        static let maxStartDateOffset = DateComponents(month: 1)
+        static let minStartDate =Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1)) ?? .distantPast
     }
 }

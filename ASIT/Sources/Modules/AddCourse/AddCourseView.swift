@@ -51,7 +51,7 @@ struct AddCourseView: View {
                 DatePicker(
                     "Дата начала курса",
                     selection: $viewModel.startDate,
-                    in: viewModel.minStartDate...,
+                    in: viewModel.minStartDate...viewModel.maxStartDate,
                     displayedComponents: .date
                 )
                 .datePickerStyle(.compact)
