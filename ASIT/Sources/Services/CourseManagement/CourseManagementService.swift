@@ -24,7 +24,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     private var reminderSchedulingTask: Task<Void, Never>?
 
     init(inMemory: Bool = false, notificationService: NotificationServiceProtocol) {
-        let schema = Schema([Course.self, Intake.self, Reminder.self])
+        let schema = Schema([Course.self, Intake.self, Reminder.self, CoursePause.self])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
 
         do {
@@ -82,10 +82,23 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             courses = []
         }
     }
+
+    func activeCourses(on date: Date) -> [Course] {
+        courses.filter { $0.isActive(on: date) }
+    }
+
+    func trackableCourses(on date: Date) -> [Course] {
+        courses.filter { $0.isActive(on: date) && !$0.isPaused(on: date) }
+    }
     
     // MARK: - Intake CRUD
     
     func addIntake(_ intake: Intake, to course: Course) {
+        // Приёмы на будущие дни и на дни паузы запрещены
+        guard course.canAddIntake(on: intake.date) else {
+            return
+        }
+
         course.intakes.append(intake)
         save()
         fetchCourses()
@@ -131,7 +144,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
 
         enqueueReminderTask { [self] in
-            if isEnabled {
+            if isEnabled && !course.isPaused {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             } else {
                 notificationService.cancelReminder(reminder)
@@ -151,7 +164,59 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
         enqueueReminderTask { [self] in
             notificationService.cancelReminder(reminder)
-            if reminder.isEnabled {
+            if reminder.isEnabled && !course.isPaused {
+                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            }
+        }
+    }
+
+    // MARK: - Pause
+
+    func pauseCourse(_ course: Course) {
+        guard !course.isPaused else {
+            return
+        }
+
+        // Если приём на сегодня уже отмечен, пауза начинается с завтра — чтобы день не оказался
+        // одновременно и на паузе, и с подтверждённым приёмом
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let startDate = course.hasIntake(on: today)
+            ? calendar.date(byAdding: .day, value: 1, to: today) ?? today
+            : today
+
+        course.pauses.append(CoursePause(startDate: startDate))
+        save()
+        fetchCourses()
+
+        let reminders = course.reminders
+        enqueueReminderTask { [notificationService] in
+            for reminder in reminders {
+                notificationService.cancelReminder(reminder)
+            }
+            await notificationService.updateBadgeCount()
+        }
+    }
+
+    func resumeCourse(_ course: Course) {
+        guard let pause = course.activePause else {
+            return
+        }
+
+        let today = Calendar.current.startOfDay(for: Date())
+        if pause.startDate >= today {
+            // Пауза ещё не успела захватить ни одного прошедшего дня — хранить её незачем
+            course.pauses.removeAll { $0.id == pause.id }
+            modelContext.delete(pause)
+        } else {
+            pause.endDate = today
+        }
+        save()
+        fetchCourses()
+
+        let enabledReminders = course.reminders.filter(\.isEnabled)
+        enqueueReminderTask { [notificationService] in
+            for reminder in enabledReminders {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
         }
@@ -178,7 +243,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     /// обработчик BGAppRefreshTask) при желании мог дождаться завершения.
     @discardableResult
     func refreshAllReminderSchedules() -> Task<Void, Never> {
-        let enabledPairs = courses.flatMap { course in
+        let enabledPairs = courses.filter { !$0.isPaused }.flatMap { course in
             course.reminders.filter(\.isEnabled).map { (course, $0) }
         }
 
@@ -195,8 +260,8 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             return
         }
 
-        // Проверяем, нет ли уже приёма на эту дату
-        guard !course.hasIntake(on: date) else {
+        // Проверяем, нет ли уже приёма на эту дату и не на паузе ли курс
+        guard !course.hasIntake(on: date), course.canAddIntake(on: date) else {
             return
         }
 
@@ -228,13 +293,15 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             let reminder = reminderDTO.toReminder()
             course.reminders.append(reminder)
         }
+
+        course.pauses.append(contentsOf: dto.course.createPauses())
         
         save()
         fetchCourses()
         
         // Планируем напоминания — только включённые, иначе импорт курса с выключенным
-        // напоминанием тут же создавал бы живое уведомление в обход isEnabled
-        for reminder in course.reminders where reminder.isEnabled {
+        // напоминанием тут же создавал бы живое уведомление в обход isEnabled. Курс на паузе не планируем вовсе
+        for reminder in course.reminders where reminder.isEnabled && !course.isPaused {
             Task {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
@@ -278,8 +345,19 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     }
     
     func fetchCourses() {}
+
+    func activeCourses(on date: Date) -> [Course] {
+        courses.filter { $0.isActive(on: date) }
+    }
+
+    func trackableCourses(on date: Date) -> [Course] {
+        courses.filter { $0.isActive(on: date) && !$0.isPaused(on: date) }
+    }
     
     func addIntake(_ intake: Intake, to course: Course) {
+        guard course.canAddIntake(on: intake.date) else {
+            return
+        }
         course.intakes.append(intake)
     }
     
@@ -295,6 +373,17 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
 
     func updateReminderTime(_ newTime: Date, course: Course) {}
 
+    func pauseCourse(_ course: Course) {
+        guard !course.isPaused else {
+            return
+        }
+        course.pauses.append(CoursePause(startDate: Calendar.current.startOfDay(for: Date())))
+    }
+
+    func resumeCourse(_ course: Course) {
+        course.pauses.removeAll { $0.endDate == nil }
+    }
+
     func handleTakenActionFromPush(courseId: UUID, date: Date) {}
     
     func importCourse(from dto: CourseExportDTO) {
@@ -305,6 +394,7 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
         for reminderDTO in dto.course.reminders {
             course.reminders.append(reminderDTO.toReminder())
         }
+        course.pauses.append(contentsOf: dto.course.createPauses())
         courses.append(course)
     }
 

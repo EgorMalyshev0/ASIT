@@ -17,7 +17,6 @@ final class Course: Sendable {
     var startDate: Date
     var endDate: Date
     var isCompleted: Bool
-    var isPaused: Bool
 
     @Relationship(deleteRule: .cascade)
     var intakes: [Intake]
@@ -25,13 +24,15 @@ final class Course: Sendable {
     @Relationship(deleteRule: .cascade)
     var reminders: [Reminder]
 
+    @Relationship(deleteRule: .cascade)
+    var pauses: [CoursePause]
+
     init(
         medicationId: String,
         takingYear: MedicationTakingYear,
         startDate: Date,
         endDate: Date,
         isCompleted: Bool = false,
-        isPaused: Bool = false,
         intakes: [Intake] = [],
         reminders: [Reminder] = []
     ) {
@@ -41,9 +42,9 @@ final class Course: Sendable {
         self.startDate = startDate
         self.endDate = endDate
         self.isCompleted = isCompleted
-        self.isPaused = isPaused
         self.intakes = []
         self.reminders = []
+        self.pauses = []
     }
     
     /// Проверяет, есть ли подтверждённый приём на указанную дату
@@ -65,6 +66,36 @@ final class Course: Sendable {
     /// Последний приём (по дате)
     var lastIntake: Intake? {
         intakes.sorted { $0.date > $1.date }.first
+    }
+
+    /// Текущая (ещё не снятая) пауза — может начинаться и с завтрашнего дня
+    var activePause: CoursePause? {
+        pauses.first { $0.endDate == nil }
+    }
+
+    /// Стоит ли курс на паузе (есть не снятая пауза)
+    var isPaused: Bool {
+        activePause != nil
+    }
+
+    /// Попадает ли день в один из периодов паузы
+    func isPaused(on date: Date) -> Bool {
+        pauses.contains { $0.contains(date) }
+    }
+
+    /// Идёт ли курс в указанный день (без учёта пауз)
+    func isActive(on date: Date) -> Bool {
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: date)
+        return !isCompleted &&
+               day >= calendar.startOfDay(for: startDate) &&
+               day <= calendar.startOfDay(for: endDate)
+    }
+
+    /// Можно ли отметить приём на указанный день: не в будущем и не на паузе
+    func canAddIntake(on date: Date) -> Bool {
+        let calendar = Calendar.current
+        return calendar.startOfDay(for: date) <= calendar.startOfDay(for: Date()) && !isPaused(on: date)
     }
 }
 

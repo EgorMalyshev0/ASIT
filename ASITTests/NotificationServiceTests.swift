@@ -108,6 +108,42 @@ struct NotificationServiceTests {
         #expect(scheduledDates.allSatisfy { $0 >= calendar.startOfDay(for: futureStart) })
     }
 
+    @Test func scheduleReminder_skipsPausedDays() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 23, minute: 59, isEnabled: true)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let pauseStart = calendar.date(byAdding: .day, value: 2, to: today)!
+        let pauseEnd = calendar.date(byAdding: .day, value: 4, to: today)!
+        let course = makeCourse(startDate: calendar.date(byAdding: .day, value: -1, to: today)!, reminders: [reminder])
+        course.pauses = [CoursePause(startDate: pauseStart, endDate: pauseEnd)]
+
+        await service.scheduleReminder(for: course, reminder: reminder)
+
+        let scheduledDays = center.addedRequests
+            .compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.dateComponents }
+            .compactMap { calendar.date(from: $0) }
+            .map { calendar.startOfDay(for: $0) }
+
+        #expect(scheduledDays.contains(calendar.date(byAdding: .day, value: 1, to: today)!))
+        #expect(!scheduledDays.contains(pauseStart))
+        #expect(!scheduledDays.contains(calendar.date(byAdding: .day, value: 3, to: today)!))
+        #expect(scheduledDays.contains(pauseEnd), "день окончания паузы уже не на паузе")
+    }
+
+    @Test func scheduleReminder_openPause_schedulesNothing() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 23, minute: 59, isEnabled: true)
+        let course = makeCourse(reminders: [reminder])
+        course.pauses = [CoursePause(startDate: Calendar.current.startOfDay(for: .now))]
+
+        await service.scheduleReminder(for: course, reminder: reminder)
+
+        #expect(center.addedRequests.isEmpty)
+    }
+
     // MARK: - scheduleOneTimeReminder (snooze)
 
     @Test func scheduleOneTimeReminder_usesIdentifierDistinctFromDailyReminder() async {

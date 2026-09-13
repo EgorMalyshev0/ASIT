@@ -80,6 +80,11 @@ final class NotificationService: NotificationServiceProtocol {
                 continue
             }
 
+            // В дни паузы напоминания не присылаем
+            if course.isPaused(on: day) {
+                continue
+            }
+
             if offset == 0 {
                 let reminderTimeToday = calendar.date(
                     bySettingHour: reminder.hour,

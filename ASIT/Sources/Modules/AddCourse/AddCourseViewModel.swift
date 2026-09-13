@@ -58,8 +58,7 @@ final class AddCourseViewModel {
             takingYear: takingYear,
             startDate: startDate,
             endDate: endDate,
-            isCompleted: false,
-            isPaused: false
+            isCompleted: false
         )
 
         courseService.addCourse(course)

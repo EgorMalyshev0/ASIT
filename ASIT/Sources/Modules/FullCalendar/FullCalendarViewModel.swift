@@ -23,7 +23,7 @@ final class FullCalendarViewModel {
         CourseCalendarRange.minDate(courses: courseService.courses, calendar: calendar)
     }
 
-    /// Максимальная дата — конец следующей недели после текущей
+    /// Максимальная дата — сегодня
     var maxDate: Date {
         CourseCalendarRange.maxDate(calendar: calendar)
     }
@@ -69,25 +69,10 @@ final class FullCalendarViewModel {
     }
 
     func allCoursesHaveIntake(on date: Date) -> Bool {
-        let courses = activeCourses(for: date)
+        let courses = courseService.trackableCourses(on: date)
         guard !courses.isEmpty else {
             return false
         }
         return courses.allSatisfy { $0.hasIntake(on: date) }
-    }
-
-    // MARK: - Private Methods
-
-    private func activeCourses(for date: Date) -> [Course] {
-        let startOfDate = calendar.startOfDay(for: date)
-        return courseService.courses.filter { course in
-            let startOfCourseStart = calendar.startOfDay(for: course.startDate)
-            let startOfCourseEnd = calendar.startOfDay(for: course.endDate)
-
-            return startOfDate >= startOfCourseStart &&
-                   startOfDate <= startOfCourseEnd &&
-                   !course.isCompleted &&
-                   !course.isPaused
-        }
     }
 }

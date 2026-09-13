@@ -16,18 +16,8 @@ enum CourseCalendarRange {
         return calendar.startOfDay(for: earliestCourseStart)
     }
 
-    /// Верхняя граница — конец следующей недели после текущей
+    /// Верхняя граница — сегодня: приёмы на будущие дни добавлять нельзя
     static func maxDate(calendar: Calendar = .current) -> Date {
-        let today = calendar.startOfDay(for: Date())
-        guard let nextWeekEnd = calendar.date(byAdding: .day, value: Constants.visibleFutureDays, to: calendar.mondayWeekStart(for: today)) else {
-            return today
-        }
-        return nextWeekEnd
-    }
-}
-
-private extension CourseCalendarRange {
-    enum Constants {
-        static let visibleFutureDays = 13
+        calendar.startOfDay(for: Date())
     }
 }

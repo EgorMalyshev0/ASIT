@@ -360,8 +360,8 @@ final class MainViewModel {
     }
 
     private func makeWeekDayModel(for date: Date) -> WeekDayModel {
-        let activeCourses = self.activeCourses(for: date)
-        let allTaken = !activeCourses.isEmpty && activeCourses.allSatisfy { $0.hasIntake(on: date) }
+        let trackableCourses = courseService.trackableCourses(on: date)
+        let allTaken = !trackableCourses.isEmpty && trackableCourses.allSatisfy { $0.hasIntake(on: date) }
 
         let formatter = DateFormatter()
         formatter.dateFormat = "d"
@@ -372,22 +372,13 @@ final class MainViewModel {
             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
             isToday: calendar.isDateInToday(date),
             allIntakesTaken: allTaken,
-            hasCourses: !activeCourses.isEmpty,
+            hasCourses: !trackableCourses.isEmpty,
             isSelectable: date >= minAllowedDate && date <= maxAllowedDate
         )
     }
 
     private func activeCourses(for date: Date) -> [Course] {
-        let startOfDate = calendar.startOfDay(for: date)
-        return courseService.courses.filter { course in
-            let startOfCourseStart = calendar.startOfDay(for: course.startDate)
-            let startOfCourseEnd = calendar.startOfDay(for: course.endDate)
-
-            return startOfDate >= startOfCourseStart &&
-                   startOfDate <= startOfCourseEnd &&
-                   !course.isCompleted &&
-                   !course.isPaused
-        }
+        courseService.activeCourses(on: date)
     }
 }
 

@@ -195,4 +195,177 @@ struct CourseManagementServiceTests {
 
         #expect(notificationService.scheduledReminders.isEmpty)
     }
+
+    // MARK: - addIntake restrictions
+
+    private func makeIntake(for course: Course, date: Date) -> Intake {
+        Intake(
+            date: date,
+            medicationId: course.medicationId,
+            variantId: "staloral_birch_pollen_10_ir_ml",
+            dosage: Dosage(type: .press, amount: 1),
+            comment: nil
+        )
+    }
+
+    @Test func addIntake_futureDate_isRejected() {
+        let service = makeService()
+        let course = makeCourse()
+        service.addCourse(course)
+
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now)!
+        service.addIntake(makeIntake(for: course, date: tomorrow), to: course)
+
+        #expect(course.intakes.isEmpty)
+    }
+
+    @Test func addIntake_pausedDay_isRejected() {
+        let service = makeService()
+        let course = makeCourse()
+        service.addCourse(course)
+        service.pauseCourse(course)
+
+        service.addIntake(makeIntake(for: course, date: .now), to: course)
+
+        #expect(course.intakes.isEmpty)
+    }
+
+    // MARK: - pauseCourse
+
+    @Test func pauseCourse_withoutTodayIntake_startsToday_andCancelsReminders() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeCourse()
+        service.addCourse(course)
+        service.setReminderEnabled(true, course: course)
+        await service.waitForPendingReminderTask()
+
+        service.pauseCourse(course)
+        await service.waitForPendingReminderTask()
+
+        #expect(course.isPaused)
+        #expect(course.isPaused(on: .now))
+        #expect(notificationService.canceledReminders.count == 1)
+        #expect(notificationService.updateBadgeCountCallCount == 1)
+    }
+
+    @Test func pauseCourse_withTodayIntake_startsTomorrow() {
+        let service = makeService()
+        let course = makeCourse()
+        service.addCourse(course)
+        service.addIntake(makeIntake(for: course, date: .now), to: course)
+
+        service.pauseCourse(course)
+
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now)!
+        #expect(course.isPaused)
+        #expect(!course.isPaused(on: .now))
+        #expect(course.isPaused(on: tomorrow))
+    }
+
+    @Test func pauseCourse_twice_createsSinglePause() {
+        let service = makeService()
+        let course = makeCourse()
+        service.addCourse(course)
+
+        service.pauseCourse(course)
+        service.pauseCourse(course)
+
+        #expect(course.pauses.count == 1)
+    }
+
+    @Test func setReminderEnabled_whilePaused_doesNotSchedule() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeCourse()
+        service.addCourse(course)
+        service.pauseCourse(course)
+
+        service.setReminderEnabled(true, course: course)
+        await service.waitForPendingReminderTask()
+
+        #expect(course.reminders.first?.isEnabled == true)
+        #expect(notificationService.scheduledReminders.isEmpty)
+    }
+
+    @Test func refreshAllReminderSchedules_skipsPausedCourses() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeCourse()
+        service.addCourse(course)
+        service.setReminderEnabled(true, course: course)
+        service.pauseCourse(course)
+        await service.waitForPendingReminderTask()
+        let scheduledBefore = notificationService.scheduledReminders.count
+
+        await service.refreshAllReminderSchedules().value
+
+        #expect(notificationService.scheduledReminders.count == scheduledBefore)
+    }
+
+    @Test func handleTakenActionFromPush_pausedDay_addsNothing() {
+        let service = makeService()
+        let calendar = Calendar.current
+        let course = makeCourse()
+        course.startDate = calendar.date(byAdding: .day, value: -5, to: .now)!
+        service.addCourse(course)
+        service.addIntake(makeIntake(for: course, date: calendar.date(byAdding: .day, value: -2, to: .now)!), to: course)
+        service.pauseCourse(course)
+
+        service.handleTakenActionFromPush(courseId: course.id, date: .now)
+
+        #expect(course.intakes.count == 1)
+        #expect(!course.hasIntake(on: .now))
+    }
+
+    // MARK: - resumeCourse
+
+    @Test func resumeCourse_sameDayPause_removesPause_andReschedulesEnabledReminder() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeCourse()
+        service.addCourse(course)
+        service.setReminderEnabled(true, course: course)
+        service.pauseCourse(course)
+        await service.waitForPendingReminderTask()
+        let scheduledBefore = notificationService.scheduledReminders.count
+
+        service.resumeCourse(course)
+        await service.waitForPendingReminderTask()
+
+        #expect(!course.isPaused)
+        #expect(course.pauses.isEmpty)
+        #expect(notificationService.scheduledReminders.count == scheduledBefore + 1)
+    }
+
+    @Test func resumeCourse_disabledReminder_schedulesNothing() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeCourse()
+        service.addCourse(course)
+        service.pauseCourse(course)
+
+        service.resumeCourse(course)
+        await service.waitForPendingReminderTask()
+
+        #expect(notificationService.scheduledReminders.isEmpty)
+    }
+
+    @Test func resumeCourse_pastPause_closesPeriodAtToday() {
+        let service = makeService()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: today)!
+        let course = makeCourse()
+        course.startDate = calendar.date(byAdding: .day, value: -10, to: today)!
+        service.addCourse(course)
+        course.pauses.append(CoursePause(startDate: threeDaysAgo))
+
+        service.resumeCourse(course)
+
+        #expect(!course.isPaused)
+        #expect(course.pauses.count == 1)
+        #expect(course.isPaused(on: threeDaysAgo))
+        #expect(!course.isPaused(on: today))
+    }
 }

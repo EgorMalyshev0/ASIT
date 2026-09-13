@@ -35,7 +35,7 @@ final class IntakeAddingViewModel {
     }
     
     var canSave: Bool {
-        selectedVariantId != nil && selectedDosage != nil
+        selectedVariantId != nil && selectedDosage != nil && course.canAddIntake(on: date)
     }
     
     private let courseService: CourseManagementServiceProtocol
@@ -51,7 +51,8 @@ final class IntakeAddingViewModel {
     }
     
     func save() {
-        guard let selectedVariantId, let selectedDosage else { return }
+        // Проверяем до удаления старого приёма, иначе при отказе в addIntake потеряли бы его
+        guard let selectedVariantId, let selectedDosage, course.canAddIntake(on: date) else { return }
         
         // Если редактируем - удаляем старый приём
         if let existingIntake = existingIntake {

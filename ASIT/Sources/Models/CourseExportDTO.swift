@@ -28,9 +28,9 @@ struct CourseDTO: Codable {
     let startDate: Date
     let endDate: Date
     let isCompleted: Bool
-    let isPaused: Bool
     let intakes: [IntakeDTO]
     let reminders: [ReminderDTO]
+    let pauses: [CoursePauseDTO]
     
     init(course: Course) {
         self.medicationId = course.medicationId
@@ -38,9 +38,9 @@ struct CourseDTO: Codable {
         self.startDate = course.startDate
         self.endDate = course.endDate
         self.isCompleted = course.isCompleted
-        self.isPaused = course.isPaused
         self.intakes = course.intakes.map { IntakeDTO(intake: $0) }
         self.reminders = course.reminders.map { ReminderDTO(reminder: $0) }
+        self.pauses = course.pauses.map { CoursePauseDTO(pause: $0) }
     }
     
     func toCourse() -> Course {
@@ -49,8 +49,7 @@ struct CourseDTO: Codable {
             takingYear: takingYear,
             startDate: startDate,
             endDate: endDate,
-            isCompleted: isCompleted,
-            isPaused: isPaused
+            isCompleted: isCompleted
         )
         return course
     }
@@ -61,6 +60,10 @@ struct CourseDTO: Codable {
     
     func createReminders() -> [Reminder] {
         reminders.map { $0.toReminder() }
+    }
+
+    func createPauses() -> [CoursePause] {
+        pauses.map { $0.toPause() }
     }
 }
 
@@ -103,5 +106,19 @@ struct ReminderDTO: Codable {
     
     func toReminder() -> Reminder {
         Reminder(hour: hour, minute: minute, isEnabled: isEnabled)
+    }
+}
+
+struct CoursePauseDTO: Codable {
+    let startDate: Date
+    let endDate: Date?
+
+    init(pause: CoursePause) {
+        self.startDate = pause.startDate
+        self.endDate = pause.endDate
+    }
+
+    func toPause() -> CoursePause {
+        CoursePause(startDate: startDate, endDate: endDate)
     }
 }

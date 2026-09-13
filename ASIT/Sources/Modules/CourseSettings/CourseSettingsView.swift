@@ -12,6 +12,7 @@ struct CourseSettingsView: View {
 
     @State private var areNotificationsEnabled: Bool = true
     @State private var isDeleteAlertPresented: Bool = false
+    @State private var isPauseAlertPresented: Bool = false
 
     init(viewModel: CourseSettingsViewModel) {
         self.viewModel = viewModel
@@ -19,7 +20,7 @@ struct CourseSettingsView: View {
 
     var body: some View {
         List {
-            Section(header: Text("Напоминания")) {
+            Section {
                 Toggle("Отправлять ежедневное уведомление",
                        isOn: Binding(
                         get: { viewModel.state.isReminderEnabled },
@@ -32,6 +33,17 @@ struct CourseSettingsView: View {
                                                            set: { viewModel.updateReminderTime($0) }),
                                displayedComponents: .hourAndMinute)
                 }
+            } header: {
+                Text("Напоминания")
+            } footer: {
+                if viewModel.state.isPaused {
+                    Text("Уведомления не отправляются, пока курс на паузе")
+                }
+            }
+            .disabled(viewModel.state.isPaused)
+
+            if viewModel.canChangePause {
+                pauseSection
             }
 
             Section {
@@ -76,5 +88,40 @@ struct CourseSettingsView: View {
         }
         .navigationTitle(viewModel.state.name)
         .animation(.default, value: viewModel.state.isReminderEnabled)
+        .animation(.default, value: viewModel.state.isPaused)
+        .alert("Приостановить курс?", isPresented: $isPauseAlertPresented) {
+            Button("Поставить на паузу") {
+                viewModel.pauseCourse()
+            }
+            Button("Отмена", role: .cancel, action: {})
+        } message: {
+            Text(pauseAlertMessage)
+        }
+    }
+
+    private var pauseSection: some View {
+        Section {
+            if viewModel.state.isPaused {
+                Button {
+                    viewModel.resumeCourse()
+                } label: {
+                    Label("Возобновить курс", systemImage: "play.fill")
+                }
+            } else {
+                Button {
+                    isPauseAlertPresented = true
+                } label: {
+                    Label("Приостановить курс", systemImage: "pause.fill")
+                }
+            }
+        }
+    }
+
+    private var pauseAlertMessage: String {
+        let description = "Пока курс на паузе, напоминания не приходят, а дни не считаются пропущенными. Отмечать приёмы в эти дни нельзя. Снять паузу можно в любой момент здесь же."
+        guard viewModel.isTodayIntakeDone else {
+            return description
+        }
+        return description + "\nПриём на сегодня уже отмечен, поэтому пауза начнётся с завтрашнего дня."
     }
 }

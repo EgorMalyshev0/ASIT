@@ -112,7 +112,11 @@ struct MainView: View {
                             course: course,
                             selectedDate: page.date,
                             medication: viewModel.medication(for: course),
+                            isPaused: course.isPaused(on: page.date),
                             onTap: {
+                                guard course.canAddIntake(on: page.date) else {
+                                    return
+                                }
                                 courseForIntake = course
                             },
                             onConfirmIntake: {

@@ -12,6 +12,8 @@ struct IntakeCardView: View {
     let course: Course
     let selectedDate: Date
     let medication: Medication?
+    /// День попадает в паузу курса — приём добавить нельзя
+    let isPaused: Bool
     let onTap: () -> Void
     let onConfirmIntake: () -> Void
     
@@ -21,6 +23,11 @@ struct IntakeCardView: View {
     
     private var isIntakeDone: Bool {
         intakeForDate != nil
+    }
+
+    /// Карточка неактивна: приём уже подтверждён или день на паузе
+    private var isDimmed: Bool {
+        isIntakeDone || isPaused
     }
     
     /// Есть ли хотя бы один приём в истории курса (для быстрого подтверждения)
@@ -46,7 +53,7 @@ struct IntakeCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(medication?.name.ru ?? "Препарат")
                     .font(.headline)
-                    .foregroundStyle(isIntakeDone ? .secondary : .primary)
+                    .foregroundStyle(isDimmed ? .secondary : .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 if let variantName = variantName {
@@ -67,14 +74,16 @@ struct IntakeCardView: View {
                     .padding(.top, 4)
             }
             
-            Image(systemName: "chevron.right")
-                .foregroundStyle(Color(.systemGray3))
-                .font(.subheadline)
+            if !isPaused {
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Color(.systemGray3))
+                    .font(.subheadline)
+            }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(isIntakeDone ? Color(.systemGray6) : Color(.systemBackground))
+                .fill(isDimmed ? Color(.systemGray6) : Color(.systemBackground))
                 .shadow(color: .primary.opacity(0.1), radius: 8, x: 0, y: 2)
         )
         .contentShape(Rectangle())
@@ -88,6 +97,10 @@ struct IntakeCardView: View {
         if isIntakeDone {
             // Приём подтверждён
             Text("Приём подтверждён")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } else if isPaused {
+            Label("На паузе", systemImage: "pause.circle")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         } else if hasAnyIntake {
@@ -151,6 +164,7 @@ struct IntakeCardView: View {
                 )
             ]
         ),
+        isPaused: false,
         onTap: {},
         onConfirmIntake: {}
     )

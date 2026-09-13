@@ -161,6 +161,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 return
             }
 
+            // Курс успели поставить на паузу (или удалить) — отложенное напоминание не нужно
+            guard let course = serviceProvider.courseService.courses.first(where: { $0.id == courseId }),
+                  !course.isPaused else {
+                return
+            }
+
             await serviceProvider.notificationService.scheduleOneTimeReminder(
                 courseId: courseId,
                 reminderId: reminderId,
