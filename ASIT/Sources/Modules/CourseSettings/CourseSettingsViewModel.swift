@@ -63,11 +63,13 @@ final class CourseSettingsViewModel {
     func pauseCourse() {
         courseService.pauseCourse(course)
         state.isPaused = course.isPaused
+        state.progress = CourseProgress(course: course)
     }
 
     func resumeCourse() {
         courseService.resumeCourse(course)
         state.isPaused = course.isPaused
+        state.progress = CourseProgress(course: course)
     }
 
     func deleteCourse() {
@@ -82,6 +84,7 @@ final class CourseSettingsViewModel {
         let state = CourseSettingsState(
             isReminderEnabled: reminder.isEnabled,
             isPaused: course.isPaused,
+            progress: CourseProgress(course: course),
             name: name,
             reminderDate: reminder.dateFromComponents ?? Date()
         )
@@ -93,8 +96,9 @@ final class CourseSettingsViewModel {
 struct CourseSettingsState {
     var isReminderEnabled: Bool
     var isPaused: Bool
+    var progress: CourseProgress
     let name: String
     var reminderDate: Date
 
-    static let empty = CourseSettingsState(isReminderEnabled: false, isPaused: false, name: "", reminderDate: .distantFuture)
+    static let empty = CourseSettingsState(isReminderEnabled: false, isPaused: false, progress: .empty, name: "", reminderDate: .distantFuture)
 }

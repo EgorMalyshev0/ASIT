@@ -21,6 +21,10 @@ struct CourseSettingsView: View {
     var body: some View {
         List {
             Section {
+                CourseProgressView(progress: viewModel.state.progress)
+            }
+
+            Section {
                 Toggle("Отправлять ежедневное уведомление",
                        isOn: Binding(
                         get: { viewModel.state.isReminderEnabled },
