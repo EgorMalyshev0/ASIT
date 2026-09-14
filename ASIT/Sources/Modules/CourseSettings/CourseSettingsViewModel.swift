@@ -54,8 +54,8 @@ final class CourseSettingsViewModel {
         course.hasIntake(on: Date())
     }
 
-    /// Ставить паузу и менять даты можно только у идущего курса: не завершённого и не закончившегося
-    var isCourseOngoing: Bool {
+    /// Паузу можно ставить только для идущего курса: не завершённого и не закончившегося
+    var canChangePause: Bool {
         let calendar = Calendar.current
         return !course.isCompleted && calendar.startOfDay(for: course.endDate) >= calendar.startOfDay(for: Date())
     }

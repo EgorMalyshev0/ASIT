@@ -47,9 +47,7 @@ struct CourseSettingsView: View {
             }
             .disabled(viewModel.state.isPaused)
 
-            if viewModel.isCourseOngoing {
-                courseManagementSection
-            }
+            courseManagementSection
 
             Section {
                 ShareLink(
@@ -117,17 +115,19 @@ struct CourseSettingsView: View {
                 Label("Изменить даты курса", systemImage: "calendar")
             }
 
-            if viewModel.state.isPaused {
-                Button {
-                    viewModel.resumeCourse()
-                } label: {
-                    Label("Возобновить курс", systemImage: "play.fill")
-                }
-            } else {
-                Button {
-                    isPauseAlertPresented = true
-                } label: {
-                    Label("Приостановить курс", systemImage: "pause.fill")
+            if viewModel.canChangePause {
+                if viewModel.state.isPaused {
+                    Button {
+                        viewModel.resumeCourse()
+                    } label: {
+                        Label("Возобновить курс", systemImage: "play.fill")
+                    }
+                } else {
+                    Button {
+                        isPauseAlertPresented = true
+                    } label: {
+                        Label("Приостановить курс", systemImage: "pause.fill")
+                    }
                 }
             }
         }
