@@ -144,6 +144,27 @@ struct NotificationServiceTests {
         #expect(center.addedRequests.isEmpty)
     }
 
+    @Test func scheduleReminder_skipsDaysAfterCourseEndDate() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 23, minute: 59, isEnabled: true)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let endDate = calendar.date(byAdding: .day, value: 2, to: today)!
+        let course = makeCourse(startDate: calendar.date(byAdding: .day, value: -1, to: today)!, reminders: [reminder])
+        course.endDate = endDate
+
+        await service.scheduleReminder(for: course, reminder: reminder)
+
+        let scheduledDays = center.addedRequests
+            .compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.dateComponents }
+            .compactMap { calendar.date(from: $0) }
+            .map { calendar.startOfDay(for: $0) }
+
+        #expect(scheduledDays.contains(endDate), "в день окончания курса напоминание ещё нужно")
+        #expect(scheduledDays.allSatisfy { $0 <= endDate })
+    }
+
     // MARK: - scheduleOneTimeReminder (snooze)
 
     @Test func scheduleOneTimeReminder_usesIdentifierDistinctFromDailyReminder() async {
@@ -325,6 +346,48 @@ struct NotificationServiceTests {
 
         #expect(center.request(identifier: dailyIdentifier(for: reminder.id, date: .now)) == nil)
         #expect(center.request(identifier: dailyIdentifier(for: reminder.id, date: tomorrow)) != nil)
+    }
+
+    // MARK: - removeNotifications(forCourseId:outsideOf:)
+
+    @Test func removeNotificationsOutside_removesDaysBeforeStartAndAfterEnd_keepsInsideAndOtherCourses() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let calendar = Calendar.current
+        let courseId = UUID()
+        let reminderId = UUID()
+        let today = calendar.startOfDay(for: .now)
+        let days = (-2...3).map { calendar.date(byAdding: .day, value: $0, to: today)! }
+        let otherCourseRequest = makeDailyRequest(reminderId: UUID(), courseId: UUID(), day: days[0])
+        center.deliveredRequests = days.prefix(3).map { makeDailyRequest(reminderId: reminderId, courseId: courseId, day: $0) } + [otherCourseRequest]
+        for day in days.suffix(3) {
+            try? await center.add(makeDailyRequest(reminderId: reminderId, courseId: courseId, day: day))
+        }
+
+        // Курс теперь со вчера по завтра
+        await service.removeNotifications(forCourseId: courseId, outsideOf: days[1], days[3])
+
+        #expect(Set(center.deliveredRequests.map(\.identifier)) == [
+            dailyIdentifier(for: reminderId, date: days[1]),
+            dailyIdentifier(for: reminderId, date: days[2]),
+            otherCourseRequest.identifier
+        ])
+        #expect(center.request(identifier: dailyIdentifier(for: reminderId, date: days[3])) != nil)
+        #expect(center.request(identifier: dailyIdentifier(for: reminderId, date: days[4])) == nil)
+        #expect(center.request(identifier: dailyIdentifier(for: reminderId, date: days[5])) == nil)
+    }
+
+    @Test func removeNotificationsOutside_removesSnoozeForDayAfterNewEnd() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let courseId = UUID()
+        let reminderId = UUID()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+        await service.scheduleOneTimeReminder(courseId: courseId, reminderId: reminderId, originalDate: .now, afterInterval: 3600)
+
+        await service.removeNotifications(forCourseId: courseId, outsideOf: yesterday.addingTimeInterval(-86400 * 5), yesterday)
+
+        #expect(center.request(identifier: "\(reminderId.uuidString)-snooze") == nil)
     }
 
     // MARK: - Authorization

@@ -37,6 +37,11 @@ protocol CourseManagementServiceProtocol: AnyObject {
     func pauseCourse(_ course: Course)
     func resumeCourse(_ course: Course)
 
+    // MARK: - Dates
+    /// Меняет даты курса: приёмы вне новых дат удаляются, паузы обрезаются по новым границам,
+    /// уведомления за дни вне курса убираются, окно уведомлений перепланируется
+    func updateCourseDates(_ course: Course, startDate: Date, endDate: Date)
+
     // MARK: - Import/Export
     func importCourse(from dto: CourseExportDTO)
 }

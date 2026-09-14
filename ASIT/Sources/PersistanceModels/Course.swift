@@ -92,6 +92,17 @@ final class Course: Sendable {
                day <= calendar.startOfDay(for: endDate)
     }
 
+    /// Приёмы, которые окажутся вне курса, если его даты поменять на [startDate, endDate]
+    func intakes(outsideOf startDate: Date, _ endDate: Date) -> [Intake] {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: startDate)
+        let end = calendar.startOfDay(for: endDate)
+        return intakes.filter { intake in
+            let day = calendar.startOfDay(for: intake.date)
+            return day < start || day > end
+        }
+    }
+
     /// Можно ли отметить приём на указанный день: не в будущем и не на паузе
     func canAddIntake(on date: Date) -> Bool {
         let calendar = Calendar.current

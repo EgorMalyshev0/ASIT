@@ -54,8 +54,8 @@ final class CourseSettingsViewModel {
         course.hasIntake(on: Date())
     }
 
-    /// Паузу можно ставить только для идущего курса: не завершённого и не закончившегося
-    var canChangePause: Bool {
+    /// Ставить паузу и менять даты можно только у идущего курса: не завершённого и не закончившегося
+    var isCourseOngoing: Bool {
         let calendar = Calendar.current
         return !course.isCompleted && calendar.startOfDay(for: course.endDate) >= calendar.startOfDay(for: Date())
     }
@@ -68,6 +68,16 @@ final class CourseSettingsViewModel {
 
     func resumeCourse() {
         courseService.resumeCourse(course)
+        state.isPaused = course.isPaused
+        state.progress = CourseProgress(course: course)
+    }
+
+    func makeCourseDatesViewModel() -> CourseDatesViewModel {
+        CourseDatesViewModel(course: course, courseService: courseService)
+    }
+
+    /// Даты курса поменялись — могли удалиться приёмы и обрезаться паузы
+    func courseDatesDidChange() {
         state.isPaused = course.isPaused
         state.progress = CourseProgress(course: course)
     }

@@ -217,6 +217,72 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         }
     }
 
+    // MARK: - Dates
+
+    func updateCourseDates(_ course: Course, startDate: Date, endDate: Date) {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: startDate)
+        let end = calendar.startOfDay(for: endDate)
+        guard start <= end else {
+            return
+        }
+
+        // Приёмы вне новых дат удаляем — пользователь подтвердил это заранее
+        let removedIntakes = course.intakes(outsideOf: start, end)
+        let removedIntakeIds = Set(removedIntakes.map(\.id))
+        course.intakes.removeAll { removedIntakeIds.contains($0.id) }
+        removedIntakes.forEach(modelContext.delete)
+
+        for pause in course.pauses {
+            let isPauseLeft = clipPause(pause, courseStart: start, courseEnd: end)
+            if !isPauseLeft {
+                course.pauses.removeAll { $0.id == pause.id }
+                modelContext.delete(pause)
+            }
+        }
+
+        course.startDate = start
+        course.endDate = end
+        save()
+        fetchCourses()
+
+        let courseId = course.id
+        let enabledReminders = course.isPaused ? [] : course.reminders.filter(\.isEnabled)
+        enqueueReminderTask { [notificationService] in
+            await notificationService.removeNotifications(forCourseId: courseId, outsideOf: start, end)
+            // Окно могло сдвинуться: например, старт перенесли на более раннюю дату
+            for reminder in enabledReminders {
+                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            }
+            await notificationService.updateBadgeCount()
+        }
+    }
+
+    /// Обрезает паузу по границам курса [courseStart, courseEnd]. Возвращает false, если от паузы
+    /// ничего не осталось и её нужно удалить
+    private func clipPause(_ pause: CoursePause, courseStart: Date, courseEnd: Date) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        // Паузы полуоткрытые, поэтому граница — день после окончания курса
+        let dayAfterCourse = calendar.date(byAdding: .day, value: 1, to: courseEnd) ?? courseEnd
+
+        let startDate = max(calendar.startOfDay(for: pause.startDate), courseStart)
+        let endDate: Date?
+        if let pauseEnd = pause.endDate {
+            endDate = min(calendar.startOfDay(for: pauseEnd), dayAfterCourse)
+        } else {
+            // Не снятая пауза у уже закончившегося курса закрывается его окончанием
+            endDate = dayAfterCourse <= today ? dayAfterCourse : nil
+        }
+
+        guard startDate < (endDate ?? dayAfterCourse) else {
+            return false
+        }
+        pause.startDate = startDate
+        pause.endDate = endDate
+        return true
+    }
+
     /// Выполняет операции планирования/отмены уведомлений строго в порядке вызова,
     /// дожидаясь предыдущей операции перед началом следующей
     @discardableResult
@@ -377,6 +443,13 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
 
     func resumeCourse(_ course: Course) {
         course.pauses.removeAll { $0.endDate == nil }
+    }
+
+    func updateCourseDates(_ course: Course, startDate: Date, endDate: Date) {
+        let removedIntakeIds = Set(course.intakes(outsideOf: startDate, endDate).map(\.id))
+        course.intakes.removeAll { removedIntakeIds.contains($0.id) }
+        course.startDate = Calendar.current.startOfDay(for: startDate)
+        course.endDate = Calendar.current.startOfDay(for: endDate)
     }
 
     func handleTakenActionFromPush(courseId: UUID, date: Date) {}

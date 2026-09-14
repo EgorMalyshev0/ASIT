@@ -384,4 +384,143 @@ struct CourseManagementServiceTests {
         #expect(course.isPaused(on: threeDaysAgo))
         #expect(!course.isPaused(on: today))
     }
+
+    // MARK: - updateCourseDates
+
+    private func day(_ offset: Int) -> Date {
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: .now))!
+    }
+
+    /// Курс с -10 по +10 день от сегодня
+    private func makeRunningCourse(in service: CourseManagementService) -> Course {
+        let course = makeCourse()
+        course.startDate = day(-10)
+        course.endDate = day(10)
+        service.addCourse(course)
+        return course
+    }
+
+    @Test func updateCourseDates_normalizesDatesToStartOfDay() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+
+        service.updateCourseDates(course, startDate: day(-5).addingTimeInterval(3600), endDate: day(20).addingTimeInterval(7200))
+
+        #expect(course.startDate == day(-5))
+        #expect(course.endDate == day(20))
+    }
+
+    @Test func updateCourseDates_startAfterEnd_isRejected() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+
+        service.updateCourseDates(course, startDate: day(5), endDate: day(1))
+
+        #expect(course.startDate == day(-10))
+        #expect(course.endDate == day(10))
+    }
+
+    @Test func updateCourseDates_removesIntakesOutsideNewDates_keepsInside() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+        for offset in [-9, -5, -3, -1] {
+            service.addIntake(makeIntake(for: course, date: day(offset).addingTimeInterval(9 * 3600)), to: course)
+        }
+
+        service.updateCourseDates(course, startDate: day(-5), endDate: day(-2))
+
+        #expect(course.intakes.count == 2)
+        #expect(course.hasIntake(on: day(-5)))
+        #expect(course.hasIntake(on: day(-3)))
+    }
+
+    @Test func updateCourseDates_pauseEntirelyOutside_isRemoved() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+        course.pauses.append(CoursePause(startDate: day(-9), endDate: day(-7)))
+
+        service.updateCourseDates(course, startDate: day(-5), endDate: day(10))
+
+        #expect(course.pauses.isEmpty)
+    }
+
+    @Test func updateCourseDates_pauseCrossingNewStart_isClippedToStart() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+        course.pauses.append(CoursePause(startDate: day(-8), endDate: day(-3)))
+
+        service.updateCourseDates(course, startDate: day(-5), endDate: day(10))
+
+        #expect(course.pauses.first?.startDate == day(-5))
+        #expect(course.pauses.first?.endDate == day(-3))
+    }
+
+    @Test func updateCourseDates_openPause_endInPast_closesPauseAtDayAfterEnd() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+        course.pauses.append(CoursePause(startDate: day(-6)))
+
+        service.updateCourseDates(course, startDate: day(-10), endDate: day(-2))
+
+        #expect(!course.isPaused)
+        #expect(course.pauses.first?.startDate == day(-6))
+        #expect(course.pauses.first?.endDate == day(-1))
+    }
+
+    @Test func updateCourseDates_openPause_endInFuture_staysOpen() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+        course.pauses.append(CoursePause(startDate: day(-3)))
+
+        service.updateCourseDates(course, startDate: day(-10), endDate: day(3))
+
+        #expect(course.isPaused)
+        #expect(course.pauses.first?.endDate == nil)
+    }
+
+    @Test func updateCourseDates_pauseStartingTomorrow_endToday_isRemoved() {
+        let service = makeService()
+        let course = makeRunningCourse(in: service)
+        course.pauses.append(CoursePause(startDate: day(1)))
+
+        service.updateCourseDates(course, startDate: day(-10), endDate: day(0))
+
+        #expect(course.pauses.isEmpty)
+    }
+
+    @Test func updateCourseDates_removesOutsideNotifications_reschedulesEnabled_updatesBadge() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeRunningCourse(in: service)
+        service.setReminderEnabled(true, course: course)
+        await service.waitForPendingReminderTask()
+        let scheduledBefore = notificationService.scheduledReminders.count
+
+        service.updateCourseDates(course, startDate: day(-5), endDate: day(3))
+        await service.waitForPendingReminderTask()
+
+        #expect(notificationService.removedNotificationsOutsideCourse.count == 1)
+        #expect(notificationService.removedNotificationsOutsideCourse.first?.startDate == day(-5))
+        #expect(notificationService.removedNotificationsOutsideCourse.first?.endDate == day(3))
+        #expect(notificationService.scheduledReminders.count == scheduledBefore + 1)
+        #expect(notificationService.updateBadgeCountCallCount == 1)
+        #expect(notificationService.callLog.suffix(2).first?.hasPrefix("removeNotificationsOutside:") == true)
+    }
+
+    @Test func updateCourseDates_pausedCourse_doesNotReschedule() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeRunningCourse(in: service)
+        service.setReminderEnabled(true, course: course)
+        service.pauseCourse(course)
+        await service.waitForPendingReminderTask()
+        let scheduledBefore = notificationService.scheduledReminders.count
+
+        service.updateCourseDates(course, startDate: day(-5), endDate: day(20))
+        await service.waitForPendingReminderTask()
+
+        #expect(notificationService.scheduledReminders.count == scheduledBefore)
+        #expect(notificationService.removedNotificationsOutsideCourse.count == 1)
+    }
 }

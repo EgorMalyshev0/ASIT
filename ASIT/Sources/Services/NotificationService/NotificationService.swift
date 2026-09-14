@@ -71,6 +71,7 @@ final class NotificationService: NotificationServiceProtocol {
         let calendar = Calendar.current
         let now = Date()
         let courseStart = calendar.startOfDay(for: course.startDate)
+        let courseEnd = calendar.startOfDay(for: course.endDate)
 
         for offset in 0..<Constants.reminderWindowDays {
             guard let day = calendar.date(byAdding: .day, value: offset, to: now) else { continue }
@@ -78,6 +79,11 @@ final class NotificationService: NotificationServiceProtocol {
             // Курс ещё не начался — не присылаем напоминания раньше даты его старта
             if calendar.startOfDay(for: day) < courseStart {
                 continue
+            }
+
+            // Курс уже закончился — после даты окончания напоминания не нужны
+            if calendar.startOfDay(for: day) > courseEnd {
+                break
             }
 
             // В дни паузы напоминания не присылаем
@@ -144,16 +150,20 @@ final class NotificationService: NotificationServiceProtocol {
     /// Notification Center), а приём отмечен за сегодня, напоминать про вчера больше не нужно.
     /// Уведомления на более поздние дни не трогаем: отметка вчерашнего приёма не отменяет сегодняшнее.
     func removeNotifications(forCourseId courseId: UUID, upTo date: Date) async {
-        let pendingRequests = await notificationCenter.pendingNotificationRequests()
-        let pendingIdentifiers = identifiers(of: pendingRequests, courseId: courseId, upTo: date)
-        if !pendingIdentifiers.isEmpty {
-            notificationCenter.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
+        let lastDay = Calendar.current.startOfDay(for: date)
+        await removeNotifications(forCourseId: courseId) { day in
+            day.map { $0 <= lastDay } ?? true
         }
+    }
 
-        let deliveredRequests = await notificationCenter.deliveredNotificationRequests()
-        let deliveredIdentifiers = identifiers(of: deliveredRequests, courseId: courseId, upTo: date)
-        if !deliveredIdentifiers.isEmpty {
-            notificationCenter.removeDeliveredNotifications(withIdentifiers: deliveredIdentifiers)
+    /// Убирает уведомления курса (pending и delivered) за дни вне [startDate, endDate] —
+    /// вызывается при корректировке дат курса
+    func removeNotifications(forCourseId courseId: UUID, outsideOf startDate: Date, _ endDate: Date) async {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: startDate)
+        let end = calendar.startOfDay(for: endDate)
+        await removeNotifications(forCourseId: courseId) { day in
+            day.map { $0 < start || $0 > end } ?? true
         }
     }
 
@@ -167,15 +177,31 @@ final class NotificationService: NotificationServiceProtocol {
         return "\(reminderId.uuidString)-\(dateKey)"
     }
 
-    private func identifiers(of requests: [UNNotificationRequest], courseId: UUID, upTo date: Date) -> [String] {
+    /// Убирает pending и delivered уведомления курса, для дня которых `shouldRemove` вернул true.
+    /// В `shouldRemove` передаётся начало дня запроса либо nil, если день определить не удалось
+    private func removeNotifications(forCourseId courseId: UUID, where shouldRemove: (Date?) -> Bool) async {
+        let pendingRequests = await notificationCenter.pendingNotificationRequests()
+        let pendingIdentifiers = identifiers(of: pendingRequests, courseId: courseId, where: shouldRemove)
+        if !pendingIdentifiers.isEmpty {
+            notificationCenter.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
+        }
+
+        let deliveredRequests = await notificationCenter.deliveredNotificationRequests()
+        let deliveredIdentifiers = identifiers(of: deliveredRequests, courseId: courseId, where: shouldRemove)
+        if !deliveredIdentifiers.isEmpty {
+            notificationCenter.removeDeliveredNotifications(withIdentifiers: deliveredIdentifiers)
+        }
+    }
+
+    private func identifiers(
+        of requests: [UNNotificationRequest],
+        courseId: UUID,
+        where shouldRemove: (Date?) -> Bool
+    ) -> [String] {
         let calendar = Calendar.current
-        let lastDay = calendar.startOfDay(for: date)
         return requests
             .filter { $0.content.userInfo["courseId"] as? String == courseId.uuidString }
-            .filter { request in
-                guard let day = scheduledDay(of: request) else { return true }
-                return calendar.startOfDay(for: day) <= lastDay
-            }
+            .filter { shouldRemove(scheduledDay(of: $0).map { calendar.startOfDay(for: $0) }) }
             .map(\.identifier)
     }
 

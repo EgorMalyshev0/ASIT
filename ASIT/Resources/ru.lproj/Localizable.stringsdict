@@ -62,6 +62,25 @@
 			<string>%d дней</string>
 		</dict>
 	</dict>
+	<key>intakes.count</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d приём</string>
+			<key>few</key>
+			<string>%d приёма</string>
+			<key>many</key>
+			<string>%d приёмов</string>
+			<key>other</key>
+			<string>%d приёмов</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
-

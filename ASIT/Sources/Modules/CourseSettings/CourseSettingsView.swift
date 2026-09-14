@@ -13,6 +13,7 @@ struct CourseSettingsView: View {
     @State private var areNotificationsEnabled: Bool = true
     @State private var isDeleteAlertPresented: Bool = false
     @State private var isPauseAlertPresented: Bool = false
+    @State private var isDatesEditingPresented: Bool = false
 
     init(viewModel: CourseSettingsViewModel) {
         self.viewModel = viewModel
@@ -46,8 +47,8 @@ struct CourseSettingsView: View {
             }
             .disabled(viewModel.state.isPaused)
 
-            if viewModel.canChangePause {
-                pauseSection
+            if viewModel.isCourseOngoing {
+                courseManagementSection
             }
 
             Section {
@@ -101,10 +102,21 @@ struct CourseSettingsView: View {
         } message: {
             Text(pauseAlertMessage)
         }
+        .sheet(isPresented: $isDatesEditingPresented) {
+            CourseDatesView(viewModel: viewModel.makeCourseDatesViewModel()) {
+                viewModel.courseDatesDidChange()
+            }
+        }
     }
 
-    private var pauseSection: some View {
+    private var courseManagementSection: some View {
         Section {
+            Button {
+                isDatesEditingPresented = true
+            } label: {
+                Label("Изменить даты курса", systemImage: "calendar")
+            }
+
             if viewModel.state.isPaused {
                 Button {
                     viewModel.resumeCourse()
