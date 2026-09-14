@@ -94,7 +94,7 @@ struct CourseProgressView: View {
                 legendItem(color: .orange, text: "На паузе \(daysText(progress.pausedDaysCount))")
             }
             if progress.missedDaysCount > 0 {
-                legendItem(color: .red, text: "Пропущено \(daysText(progress.missedDaysCount))")
+                legendItem(color: .red, text: missedDaysText)
             }
         }
         .font(.caption)
@@ -158,7 +158,7 @@ struct CourseProgressView: View {
         case .inProgress where progress.remainingDays == 0:
             "День \(progress.elapsedDays) из \(progress.totalDays) · последний день"
         case .inProgress:
-            "День \(progress.elapsedDays) из \(progress.totalDays) · осталось \(daysText(progress.remainingDays))"
+            "День \(progress.elapsedDays) из \(progress.totalDays) · \(localizedCount("days.remaining", progress.remainingDays))"
         case .finished:
             "Курс завершён · \(daysText(progress.totalDays))"
         }
@@ -176,7 +176,16 @@ struct CourseProgressView: View {
     }
 
     private func daysText(_ count: Int) -> String {
-        String(format: NSLocalizedString("days.count", comment: ""), count)
+        localizedCount("days.count", count)
+    }
+
+    /// «Пропущен 1 день» / «Пропущено 2 дня» — глагол согласуется с числом
+    private var missedDaysText: String {
+        localizedCount("days.missed", progress.missedDaysCount)
+    }
+
+    private func localizedCount(_ key: String, _ count: Int) -> String {
+        String(format: NSLocalizedString(key, comment: ""), count)
     }
 
     private var accessibilityValue: String {
@@ -185,7 +194,7 @@ struct CourseProgressView: View {
             parts.append("на паузе \(daysText(progress.pausedDaysCount))")
         }
         if progress.missedDaysCount > 0 {
-            parts.append("пропущено \(daysText(progress.missedDaysCount))")
+            parts.append(missedDaysText)
         }
         return parts.joined(separator: ", ")
     }

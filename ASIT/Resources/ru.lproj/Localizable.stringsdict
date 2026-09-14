@@ -62,5 +62,45 @@
 			<string>%d дней</string>
 		</dict>
 	</dict>
+	<key>days.remaining</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>остался %d день</string>
+			<key>few</key>
+			<string>осталось %d дня</string>
+			<key>many</key>
+			<string>осталось %d дней</string>
+			<key>other</key>
+			<string>осталось %d дней</string>
+		</dict>
+	</dict>
+	<key>days.missed</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>Пропущен %d день</string>
+			<key>few</key>
+			<string>Пропущено %d дня</string>
+			<key>many</key>
+			<string>Пропущено %d дней</string>
+			<key>other</key>
+			<string>Пропущено %d дней</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
