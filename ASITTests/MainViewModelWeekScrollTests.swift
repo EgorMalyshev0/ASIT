@@ -44,6 +44,67 @@ struct MainViewModelWeekScrollTests {
         #expect(weekTargetAfter != weekTargetBefore)
     }
 
+    @Test func weekScroll_movesDayScrollTarget() async throws {
+        let calendar = Calendar.current
+        let viewModel = makeViewModel()
+        let previousWeekStart = calendar.date(byAdding: .day, value: -7, to: calendar.mondayWeekStart(for: Date()))!
+        let previousWednesday = calendar.date(byAdding: .day, value: 2, to: previousWeekStart)!
+
+        viewModel.selectDate(previousWednesday)
+
+        // Симулируем перелистывание недельного скролла на неделю назад
+        viewModel.weekScrollTarget = calendar.date(byAdding: .day, value: -7, to: previousWeekStart)!
+
+        // scrollTargetDate обновляется на следующем тике run loop
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        let expected = calendar.date(byAdding: .day, value: -7, to: previousWednesday)!
+        #expect(calendar.isDate(viewModel.selectedDate, inSameDayAs: expected))
+        #expect(viewModel.scrollTargetDate.map { calendar.isDate($0, inSameDayAs: expected) } == true)
+        #expect(viewModel.dayPages.contains { calendar.isDate($0.date, inSameDayAs: expected) })
+    }
+
+    @Test func weekScrollForward_toWeekWithUnavailableSameWeekday_selectsLastAvailableDay() {
+        let calendar = Calendar.current
+        let viewModel = makeViewModel()
+        let today = calendar.startOfDay(for: Date())
+        let currentWeekStart = calendar.mondayWeekStart(for: today)
+
+        // Воскресенье прошлой недели; воскресенье текущей недели всегда >= сегодня
+        let previousSunday = calendar.date(byAdding: .day, value: -1, to: currentWeekStart)!
+        viewModel.selectDate(previousSunday)
+
+        // Симулируем перелистывание недельного скролла на неделю вперёд
+        viewModel.weekScrollTarget = currentWeekStart
+
+        #expect(calendar.isDate(viewModel.selectedDate, inSameDayAs: today))
+    }
+
+    @Test func weekScrollBackward_toWeekWithUnavailableSameWeekday_selectsFirstAvailableDay() {
+        let calendar = Calendar.current
+        let courseService = MockCourseManagementService()
+        let today = calendar.startOfDay(for: Date())
+        let currentWeekStart = calendar.mondayWeekStart(for: today)
+
+        // Курс начинается в воскресенье позапрошлой недели — понедельник той недели недоступен
+        let previousWeekStart = calendar.date(byAdding: .day, value: -7, to: currentWeekStart)!
+        let courseStart = calendar.date(byAdding: .day, value: -1, to: previousWeekStart)!
+        courseService.addCourse(Course(
+            medicationId: "staloral_birch_pollen",
+            takingYear: .first,
+            startDate: courseStart,
+            endDate: calendar.date(byAdding: .day, value: 30, to: today)!
+        ))
+        let viewModel = MainViewModel(courseService: courseService, medicationService: MockMedicationService())
+
+        viewModel.selectDate(previousWeekStart)
+
+        // Симулируем перелистывание недельного скролла на неделю назад
+        viewModel.weekScrollTarget = calendar.date(byAdding: .day, value: -7, to: previousWeekStart)!
+
+        #expect(calendar.isDate(viewModel.selectedDate, inSameDayAs: courseStart))
+    }
+
     @Test func longUnidirectionalDayScroll_keepsWindowsBounded() {
         let calendar = Calendar.current
         let viewModel = makeViewModel()

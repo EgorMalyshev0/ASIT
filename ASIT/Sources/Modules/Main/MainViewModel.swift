@@ -102,13 +102,8 @@ final class MainViewModel {
         // FullCalendarView меняет selectedDate напрямую через Binding, минуя этот
         // метод, а на dismiss мы вызываемся повторно с уже установленной датой —
         // именно тогда и нужно подтянуть окно страниц под неё.
-        isUpdatingFromDateSelection = true
-        selectedDate = normalized
-        ensureDayWindow(covers: normalized)
-        ensureWeekWindow(covers: normalized)
-        refreshWeekPagesContent()
+        applySelectedDate(normalized)
         syncScrollTargets()
-        isUpdatingFromDateSelection = false
     }
 
     // MARK: - Private Methods
@@ -130,10 +125,7 @@ final class MainViewModel {
             return
         }
 
-        selectedDate = normalized
-        ensureDayWindow(covers: normalized)
-        ensureWeekWindow(covers: normalized)
-        refreshWeekPagesContent()
+        applySelectedDate(normalized)
 
         let newWeekStart = calendar.mondayWeekStart(for: normalized)
         guard newWeekStart != weekScrollTarget else {
@@ -167,12 +159,44 @@ final class MainViewModel {
             return
         }
 
-        // Сохраняем день недели при перелистывании недели целиком
+        // Сохраняем день недели при перелистывании недели целиком. Если этот день
+        // недоступен, берём ближайший доступный в новой неделе: newWeekStart уже
+        // лежит в [minAllowedWeekStart, maxAllowedWeekStart], поэтому клэмп не
+        // выводит дату за пределы новой недели
         let dayOffsetWithinWeek = calendar.dateComponents([.day], from: currentWeekStart, to: selectedDate).day ?? 0
         guard let newDate = calendar.date(byAdding: .day, value: dayOffsetWithinWeek, to: newWeekStart) else {
             return
         }
-        selectDate(newDate)
+        let normalized = calendar.startOfDay(for: clampedDate(newDate))
+        applySelectedDate(normalized)
+
+        // Откладываем на следующий тик по той же причине, что и в handleDayScrollChange:
+        // синхронная запись scrollTargetDate изнутри settle недельного скролла
+        // иногда игнорируется, и дневной скролл не перелистывается
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.selectedDate == normalized else {
+                return
+            }
+
+            self.isUpdatingFromDateSelection = true
+
+            withAnimation {
+                self.scrollTargetDate = normalized
+            }
+
+            self.isUpdatingFromDateSelection = false
+        }
+    }
+
+    /// Устанавливает selectedDate и подтягивает под неё окна страниц дней и недель,
+    /// не трогая позиции скроллов
+    private func applySelectedDate(_ date: Date) {
+        isUpdatingFromDateSelection = true
+        selectedDate = date
+        ensureDayWindow(covers: date)
+        ensureWeekWindow(covers: date)
+        refreshWeekPagesContent()
+        isUpdatingFromDateSelection = false
     }
 
     private func syncScrollTargets() {
