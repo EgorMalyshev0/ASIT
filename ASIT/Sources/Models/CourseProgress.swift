@@ -16,7 +16,7 @@ struct CourseProgress: Equatable {
         let days: Range<Int>
         /// Первый день паузы
         let startDate: Date
-        /// Последний день паузы (включительно); nil — пауза ещё не снята
+        /// Последний день паузы (включительно); nil — пауза ещё не снята, а курс не завершён
         let lastDate: Date?
 
         var id: Int {
@@ -93,6 +93,7 @@ struct CourseProgress: Equatable {
         let totalDays = max(dayIndex(end) + 1, 1)
         let todayIndex = dayIndex(today)
         let elapsedDays = min(max(todayIndex + 1, 0), totalDays)
+        let isFinished = todayIndex >= totalDays
 
         let pauses = course.pauses
             .compactMap { pause -> Pause? in
@@ -106,7 +107,9 @@ struct CourseProgress: Equatable {
                 return Pause(
                     days: lowerBound..<upperBound,
                     startDate: calendar.startOfDay(for: pause.startDate),
+                    // Не снятая пауза у завершённого курса закончилась вместе с ним
                     lastDate: pause.endDate.flatMap { calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: $0)) }
+                        ?? (isFinished ? end : nil)
                 )
             }
             .sorted { $0.days.lowerBound < $1.days.lowerBound }
@@ -127,7 +130,7 @@ struct CourseProgress: Equatable {
         let stage: Stage
         if todayIndex < 0 {
             stage = .notStarted(daysUntilStart: -todayIndex)
-        } else if todayIndex < totalDays {
+        } else if !isFinished {
             stage = .inProgress
         } else {
             stage = .finished

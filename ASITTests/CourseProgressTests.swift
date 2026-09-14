@@ -93,6 +93,15 @@ struct CourseProgressTests {
         #expect(progress.pauses.first?.lastDate == nil)
     }
 
+    @Test func activePause_ofFinishedCourse_endsWithCourse() {
+        let course = makeCourse(pauses: [CoursePause(startDate: day(7))])
+
+        let progress = progress(course, today: 15)
+
+        #expect(progress.pauses.map(\.days) == [7..<10])
+        #expect(progress.pauses.first?.lastDate == day(9))
+    }
+
     @Test func pauseStartingTomorrow_isNotShown() {
         let course = makeCourse(pauses: [CoursePause(startDate: day(6))])
 

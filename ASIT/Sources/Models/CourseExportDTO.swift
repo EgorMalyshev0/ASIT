@@ -27,7 +27,6 @@ struct CourseDTO: Codable {
     let takingYear: MedicationTakingYear
     let startDate: Date
     let endDate: Date
-    let isCompleted: Bool
     let intakes: [IntakeDTO]
     let reminders: [ReminderDTO]
     let pauses: [CoursePauseDTO]
@@ -37,7 +36,6 @@ struct CourseDTO: Codable {
         self.takingYear = course.takingYear
         self.startDate = course.startDate
         self.endDate = course.endDate
-        self.isCompleted = course.isCompleted
         self.intakes = course.intakes.map { IntakeDTO(intake: $0) }
         self.reminders = course.reminders.map { ReminderDTO(reminder: $0) }
         self.pauses = course.pauses.map { CoursePauseDTO(pause: $0) }
@@ -48,8 +46,7 @@ struct CourseDTO: Codable {
             medicationId: medicationId,
             takingYear: takingYear,
             startDate: startDate,
-            endDate: endDate,
-            isCompleted: isCompleted
+            endDate: endDate
         )
         return course
     }

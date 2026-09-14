@@ -59,8 +59,7 @@ final class AddCourseViewModel {
             medicationId: selectedMedicationId,
             takingYear: takingYear,
             startDate: startDate,
-            endDate: endDate,
-            isCompleted: false
+            endDate: endDate
         )
 
         courseService.addCourse(course)

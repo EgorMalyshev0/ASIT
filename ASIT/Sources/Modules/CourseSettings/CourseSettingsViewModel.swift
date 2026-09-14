@@ -54,12 +54,6 @@ final class CourseSettingsViewModel {
         course.hasIntake(on: Date())
     }
 
-    /// Паузу можно ставить только для идущего курса: не завершённого и не закончившегося
-    var canChangePause: Bool {
-        let calendar = Calendar.current
-        return !course.isCompleted && calendar.startOfDay(for: course.endDate) >= calendar.startOfDay(for: Date())
-    }
-
     func pauseCourse() {
         courseService.pauseCourse(course)
         state.isPaused = course.isPaused
@@ -78,12 +72,22 @@ final class CourseSettingsViewModel {
 
     /// Даты курса поменялись — могли удалиться приёмы и обрезаться паузы
     func courseDatesDidChange() {
-        state.isPaused = course.isPaused
-        state.progress = CourseProgress(course: course)
+        refreshCourseStatus()
+    }
+
+    /// Наступил новый день — курс мог завершиться, а прогресс сдвинуться
+    func dayDidChange() {
+        refreshCourseStatus()
     }
 
     func deleteCourse() {
         courseService.deleteCourse(course)
+    }
+
+    private func refreshCourseStatus() {
+        state.isPaused = course.isPaused
+        state.isCompleted = course.isCompleted
+        state.progress = CourseProgress(course: course)
     }
 
     @MainActor
@@ -94,6 +98,7 @@ final class CourseSettingsViewModel {
         let state = CourseSettingsState(
             isReminderEnabled: reminder.isEnabled,
             isPaused: course.isPaused,
+            isCompleted: course.isCompleted,
             progress: CourseProgress(course: course),
             name: name,
             reminderDate: reminder.dateFromComponents ?? Date()
@@ -106,9 +111,10 @@ final class CourseSettingsViewModel {
 struct CourseSettingsState {
     var isReminderEnabled: Bool
     var isPaused: Bool
+    var isCompleted: Bool
     var progress: CourseProgress
     let name: String
     var reminderDate: Date
 
-    static let empty = CourseSettingsState(isReminderEnabled: false, isPaused: false, progress: .empty, name: "", reminderDate: .distantFuture)
+    static let empty = CourseSettingsState(isReminderEnabled: false, isPaused: false, isCompleted: false, progress: .empty, name: "", reminderDate: .distantFuture)
 }

@@ -165,6 +165,20 @@ struct NotificationServiceTests {
         #expect(scheduledDays.allSatisfy { $0 <= endDate })
     }
 
+    @Test func scheduleReminder_completedCourse_schedulesNothing() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 23, minute: 59, isEnabled: true)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let course = makeCourse(startDate: calendar.date(byAdding: .day, value: -10, to: today)!, reminders: [reminder])
+        course.endDate = calendar.date(byAdding: .day, value: -1, to: today)!
+
+        await service.scheduleReminder(for: course, reminder: reminder)
+
+        #expect(center.addedRequests.isEmpty)
+    }
+
     // MARK: - scheduleOneTimeReminder (snooze)
 
     @Test func scheduleOneTimeReminder_usesIdentifierDistinctFromDailyReminder() async {
@@ -241,10 +255,8 @@ struct NotificationServiceTests {
         let removedPending = center.removedPendingIdentifiers.last ?? []
         let removedDelivered = center.removedDeliveredIdentifiers.last ?? []
 
-        // Отменяются: legacy-идентификатор (без даты, от старой схемы), снус,
-        // и датированные идентификаторы дней окна — одинаково для pending и delivered
+        // Отменяются снус и датированные идентификаторы дней окна — одинаково для pending и delivered
         #expect(removedPending == removedDelivered)
-        #expect(removedPending.contains(reminder.id.uuidString))
         #expect(removedPending.contains("\(reminder.id.uuidString)-snooze"))
         #expect(removedPending.contains(dailyIdentifier(for: reminder.id, date: .now)))
     }

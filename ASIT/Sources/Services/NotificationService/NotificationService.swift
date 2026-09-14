@@ -254,14 +254,12 @@ final class NotificationService: NotificationServiceProtocol {
         }
     }
 
-    /// Полностью удаляет напоминание для курса: все дни текущего окна, отложенный snooze, и
-    /// legacy-идентификатор без даты (от старой схемы с одним repeating-триггером — на случай,
-    /// если он остался висеть в системе после обновления приложения)
+    /// Полностью удаляет напоминание для курса: все дни текущего окна и отложенный snooze
     func cancelReminder(_ reminder: Reminder) {
         let calendar = Calendar.current
         let today = Date()
 
-        var identifiers = [reminder.id.uuidString, snoozeIdentifier(for: reminder.id)]
+        var identifiers = [snoozeIdentifier(for: reminder.id)]
         // Запас по краям окна — безопасен, removePendingNotificationRequests просто игнорирует
         // несуществующие идентификаторы
         for offset in -3...(Constants.reminderWindowDays * 2) {

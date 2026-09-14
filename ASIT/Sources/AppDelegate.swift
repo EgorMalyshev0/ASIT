@@ -117,8 +117,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return [.banner, .list, .sound]
         }
 
-        // Если на день, для которого уведомление планировалось, уже был приём — не показываем
-        if course.hasIntake(on: Self.intendedDate(of: notification)) {
+        // Если на день, для которого уведомление планировалось, уже был приём или этот день
+        // оказался вне дат курса (например, их изменили) — не показываем
+        let intendedDate = Self.intendedDate(of: notification)
+        if course.hasIntake(on: intendedDate) || !course.isActive(on: intendedDate) {
             return []
         }
 
@@ -154,9 +156,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 return
             }
 
-            // Курс успели поставить на паузу (или удалить) — отложенное напоминание не нужно
+            // Курс успели поставить на паузу, удалить или день оказался вне дат курса — отложенное
+            // напоминание не нужно. Snooze за последний день курса после полуночи допустим: приём за
+            // этот день ещё можно отметить
             guard let course = serviceProvider.courseService.courses.first(where: { $0.id == courseId }),
-                  !course.isPaused else {
+                  !course.isPaused,
+                  course.isActive(on: intakeDate) else {
                 return
             }
 

@@ -16,7 +16,6 @@ final class Course: Sendable {
     var takingYear: MedicationTakingYear
     var startDate: Date
     var endDate: Date
-    var isCompleted: Bool
 
     @Relationship(deleteRule: .cascade)
     var intakes: [Intake]
@@ -32,7 +31,6 @@ final class Course: Sendable {
         takingYear: MedicationTakingYear,
         startDate: Date,
         endDate: Date,
-        isCompleted: Bool = false,
         intakes: [Intake] = [],
         reminders: [Reminder] = []
     ) {
@@ -41,7 +39,6 @@ final class Course: Sendable {
         self.takingYear = takingYear
         self.startDate = startDate
         self.endDate = endDate
-        self.isCompleted = isCompleted
         self.intakes = []
         self.reminders = []
         self.pauses = []
@@ -83,12 +80,17 @@ final class Course: Sendable {
         pauses.contains { $0.contains(date) }
     }
 
+    /// Завершён ли курс: дата окончания уже прошла. В сам день окончания курс ещё идёт
+    var isCompleted: Bool {
+        let calendar = Calendar.current
+        return calendar.startOfDay(for: endDate) < calendar.startOfDay(for: Date())
+    }
+
     /// Идёт ли курс в указанный день (без учёта пауз)
     func isActive(on date: Date) -> Bool {
         let calendar = Calendar.current
         let day = calendar.startOfDay(for: date)
-        return !isCompleted &&
-               day >= calendar.startOfDay(for: startDate) &&
+        return day >= calendar.startOfDay(for: startDate) &&
                day <= calendar.startOfDay(for: endDate)
     }
 

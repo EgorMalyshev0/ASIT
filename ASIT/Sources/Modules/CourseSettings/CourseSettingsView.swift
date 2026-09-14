@@ -5,6 +5,7 @@
 //  Created by Egor Malyshev on 21.08.2026.
 //
 
+import Combine
 import SwiftUI
 
 struct CourseSettingsView: View {
@@ -25,27 +26,10 @@ struct CourseSettingsView: View {
                 CourseProgressView(progress: viewModel.state.progress)
             }
 
-            Section {
-                Toggle("Отправлять ежедневное уведомление",
-                       isOn: Binding(
-                        get: { viewModel.state.isReminderEnabled },
-                        set: { viewModel.setReminderEnabled($0) }
-                       )
-                )
-
-                if viewModel.state.isReminderEnabled {
-                    DatePicker("Время", selection: Binding(get: { viewModel.state.reminderDate },
-                                                           set: { viewModel.updateReminderTime($0) }),
-                               displayedComponents: .hourAndMinute)
-                }
-            } header: {
-                Text("Напоминания")
-            } footer: {
-                if viewModel.state.isPaused {
-                    Text("Уведомления не отправляются, пока курс на паузе")
-                }
+            // Завершённому курсу напоминания не нужны
+            if !viewModel.state.isCompleted {
+                remindersSection
             }
-            .disabled(viewModel.state.isPaused)
 
             courseManagementSection
 
@@ -92,6 +76,10 @@ struct CourseSettingsView: View {
         .navigationTitle(viewModel.state.name)
         .animation(.default, value: viewModel.state.isReminderEnabled)
         .animation(.default, value: viewModel.state.isPaused)
+        .animation(.default, value: viewModel.state.isCompleted)
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
+            viewModel.dayDidChange()
+        }
         .alert("Приостановить курс?", isPresented: $isPauseAlertPresented) {
             Button("Поставить на паузу") {
                 viewModel.pauseCourse()
@@ -107,6 +95,30 @@ struct CourseSettingsView: View {
         }
     }
 
+    private var remindersSection: some View {
+        Section {
+            Toggle("Отправлять ежедневное уведомление",
+                   isOn: Binding(
+                    get: { viewModel.state.isReminderEnabled },
+                    set: { viewModel.setReminderEnabled($0) }
+                   )
+            )
+
+            if viewModel.state.isReminderEnabled {
+                DatePicker("Время", selection: Binding(get: { viewModel.state.reminderDate },
+                                                       set: { viewModel.updateReminderTime($0) }),
+                           displayedComponents: .hourAndMinute)
+            }
+        } header: {
+            Text("Напоминания")
+        } footer: {
+            if viewModel.state.isPaused {
+                Text("Уведомления не отправляются, пока курс на паузе")
+            }
+        }
+        .disabled(viewModel.state.isPaused)
+    }
+
     private var courseManagementSection: some View {
         Section {
             Button {
@@ -115,7 +127,8 @@ struct CourseSettingsView: View {
                 Label("Изменить даты курса", systemImage: "calendar")
             }
 
-            if viewModel.canChangePause {
+            // Паузу можно ставить только незавершённому курсу
+            if !viewModel.state.isCompleted {
                 if viewModel.state.isPaused {
                     Button {
                         viewModel.resumeCourse()
