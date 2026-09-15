@@ -82,7 +82,8 @@ struct CourseManagementServiceTests {
         service.setReminderEnabled(false, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.callLog.last?.hasPrefix("cancel:") == true)
+        #expect(notificationService.callLog.last { $0 != "refreshBadges" }?.hasPrefix("cancel:") == true)
+        #expect(notificationService.callLog.last == "refreshBadges")
     }
 
     // MARK: - updateReminderTime
@@ -133,9 +134,39 @@ struct CourseManagementServiceTests {
         #expect(service.courses.contains { $0.id == course.id } == false)
     }
 
+    @Test func deleteCourse_refreshesBadges() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeCourse()
+        service.addCourse(course)
+        await service.waitForPendingReminderTask()
+        let refreshesBefore = notificationService.refreshBadgesCallCount
+
+        service.deleteCourse(course)
+        await service.waitForPendingReminderTask()
+
+        #expect(notificationService.refreshBadgesCallCount == refreshesBefore + 1)
+    }
+
+    @Test func deleteIntake_refreshesBadges() async {
+        let notificationService = MockNotificationService()
+        let service = makeService(notificationService: notificationService)
+        let course = makeCourse()
+        service.addCourse(course)
+        let intake = makeIntake(for: course, date: .now)
+        service.addIntake(intake, to: course)
+        await service.waitForPendingReminderTask()
+        let refreshesBefore = notificationService.refreshBadgesCallCount
+
+        service.deleteIntake(intake, from: course)
+        await service.waitForPendingReminderTask()
+
+        #expect(notificationService.refreshBadgesCallCount == refreshesBefore + 1)
+    }
+
     // MARK: - addIntake
 
-    @Test func addIntake_removesCourseNotificationsUpToIntakeDay_thenUpdatesBadge() async {
+    @Test func addIntake_removesCourseNotificationsUpToIntakeDay_thenRefreshesBadges() async {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeCourse()
@@ -149,7 +180,7 @@ struct CourseManagementServiceTests {
         #expect(notificationService.removedNotifications.count == 1)
         #expect(notificationService.removedNotifications.first?.courseId == course.id)
         #expect(notificationService.removedNotifications.first?.upToDate == yesterday)
-        #expect(notificationService.updateBadgeCountCallCount == 1)
+        #expect(notificationService.callLog.suffix(2) == ["removeNotifications:\(course.id)", "refreshBadges"])
     }
 
     // MARK: - importCourse
@@ -241,7 +272,8 @@ struct CourseManagementServiceTests {
         #expect(course.isPaused)
         #expect(course.isPaused(on: .now))
         #expect(notificationService.canceledReminders.count == 1)
-        #expect(notificationService.updateBadgeCountCallCount == 1)
+        #expect(notificationService.callLog.suffix(2).first?.hasPrefix("cancel:") == true)
+        #expect(notificationService.callLog.last == "refreshBadges")
     }
 
     @Test func pauseCourse_withTodayIntake_startsTomorrow() {
@@ -489,7 +521,7 @@ struct CourseManagementServiceTests {
         #expect(course.pauses.isEmpty)
     }
 
-    @Test func updateCourseDates_removesOutsideNotifications_reschedulesEnabled_updatesBadge() async {
+    @Test func updateCourseDates_removesOutsideNotifications_reschedulesEnabled_refreshesBadges() async {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeRunningCourse(in: service)
@@ -504,8 +536,8 @@ struct CourseManagementServiceTests {
         #expect(notificationService.removedNotificationsOutsideCourse.first?.startDate == day(-5))
         #expect(notificationService.removedNotificationsOutsideCourse.first?.endDate == day(3))
         #expect(notificationService.scheduledReminders.count == scheduledBefore + 1)
-        #expect(notificationService.updateBadgeCountCallCount == 1)
-        #expect(notificationService.callLog.suffix(2).first?.hasPrefix("removeNotificationsOutside:") == true)
+        #expect(notificationService.callLog.suffix(3).first?.hasPrefix("removeNotificationsOutside:") == true)
+        #expect(notificationService.callLog.last == "refreshBadges")
     }
 
     @Test func updateCourseDates_pausedCourse_doesNotReschedule() async {
@@ -605,7 +637,7 @@ struct CourseManagementServiceTests {
         #expect(course.isCompleted)
         #expect(notificationService.scheduledReminders.count == scheduledBefore)
         #expect(notificationService.removedNotificationsOutsideCourse.first?.endDate == day(-1))
-        #expect(notificationService.updateBadgeCountCallCount == 1)
+        #expect(notificationService.callLog.last == "refreshBadges")
     }
 
     @Test func updateCourseDates_extendCompletedCourse_reschedulesEnabledReminder() async {

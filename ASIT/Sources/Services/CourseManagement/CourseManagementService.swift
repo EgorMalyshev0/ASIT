@@ -71,6 +71,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         modelContext.delete(course)
         save()
         fetchCourses()
+        refreshBadges()
     }
     
     func fetchCourses() {
@@ -104,19 +105,20 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
         
         // Убираем уведомления курса (и ещё не пришедшие, и уже доставленные) на день приёма и более
-        // ранние — приём за этот день есть, а более ранние без приёма считаются пропущенными.
-        // Badge обновляем уже после удаления
+        // ранние — приём за этот день есть, а более ранние без приёма считаются пропущенными
         let courseId = course.id
         let intakeDate = intake.date
-        enqueueReminderTask { [notificationService] in
+        enqueueReminderTask { [self] in
             await notificationService.removeNotifications(forCourseId: courseId, upTo: intakeDate)
-            await notificationService.updateBadgeCount()
+            await refreshBadgesForCurrentCourses()
         }
     }
-    
+
     func updateIntake(_ intake: Intake) {
         save()
         fetchCourses()
+        // Дата приёма могла поменяться — курс снова может ждать приёма
+        refreshAllReminderSchedules()
     }
     
     func deleteIntake(_ intake: Intake, from course: Course) {
@@ -127,6 +129,8 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         modelContext.delete(intake)
         save()
         fetchCourses()
+        // Без приёма курс снова ждёт его, а сегодняшнее напоминание, убранное при отметке, нужно вернуть
+        refreshAllReminderSchedules()
     }
     
     // MARK: - Reminder CRUD
@@ -144,6 +148,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             } else {
                 notificationService.cancelReminder(reminder)
             }
+            await refreshBadgesForCurrentCourses()
         }
     }
 
@@ -162,6 +167,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             if reminder.isEnabled && canScheduleReminders(for: course) {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
+            await refreshBadgesForCurrentCourses()
         }
     }
 
@@ -185,11 +191,11 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
 
         let reminders = course.reminders
-        enqueueReminderTask { [notificationService] in
+        enqueueReminderTask { [self] in
             for reminder in reminders {
                 notificationService.cancelReminder(reminder)
             }
-            await notificationService.updateBadgeCount()
+            await refreshBadgesForCurrentCourses()
         }
     }
 
@@ -210,10 +216,11 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
 
         let enabledReminders = canScheduleReminders(for: course) ? course.reminders.filter(\.isEnabled) : []
-        enqueueReminderTask { [notificationService] in
+        enqueueReminderTask { [self] in
             for reminder in enabledReminders {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
+            await refreshBadgesForCurrentCourses()
         }
     }
 
@@ -249,13 +256,13 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         let courseId = course.id
         // Курс на паузе или уже завершённый (дату окончания перенесли в прошлое) не планируем
         let enabledReminders = canScheduleReminders(for: course) ? course.reminders.filter(\.isEnabled) : []
-        enqueueReminderTask { [notificationService] in
+        enqueueReminderTask { [self] in
             await notificationService.removeNotifications(forCourseId: courseId, outsideOf: start, end)
             // Окно могло сдвинуться: например, старт перенесли на более раннюю дату
             for reminder in enabledReminders {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
-            await notificationService.updateBadgeCount()
+            await refreshBadgesForCurrentCourses()
         }
     }
 
@@ -309,10 +316,21 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             course.reminders.filter(\.isEnabled).map { (course, $0) }
         }
 
-        return enqueueReminderTask { [notificationService] in
+        return enqueueReminderTask { [self] in
             for (course, reminder) in enabledPairs {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
+            await refreshBadgesForCurrentCourses()
+        }
+    }
+
+    /// Пересчитывает бейдж и badge в pending-уведомлениях (см. `IntakeBadgeCalculator`) — после
+    /// операций вне сервиса, например snooze, или когда пуш доставлен при открытом приложении и его
+    /// content.badge система не применила
+    @discardableResult
+    func refreshBadges() -> Task<Void, Never> {
+        enqueueReminderTask { [self] in
+            await refreshBadgesForCurrentCourses()
         }
     }
 
@@ -363,14 +381,23 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         
         // Планируем напоминания — только включённые, иначе импорт курса с выключенным
         // напоминанием тут же создавал бы живое уведомление в обход isEnabled. Курс на паузе и завершённый не планируем вовсе
-        for reminder in course.reminders where reminder.isEnabled && canScheduleReminders(for: course) {
-            Task {
+        let enabledReminders = canScheduleReminders(for: course) ? course.reminders.filter(\.isEnabled) : []
+        enqueueReminderTask { [self] in
+            for reminder in enabledReminders {
                 await notificationService.scheduleReminder(for: course, reminder: reminder)
             }
+            await refreshBadgesForCurrentCourses()
         }
     }
 
     // MARK: - Private
+
+    /// Курсы читаем в момент выполнения, а не при постановке в очередь: к этому моменту часть
+    /// захваченных моделей могла быть уже удалена из контекста
+    @MainActor
+    private func refreshBadgesForCurrentCourses() async {
+        await notificationService.refreshBadges(for: courses)
+    }
 
     /// Напоминания нужны только курсу, который не на паузе и ещё не завершён
     private func canScheduleReminders(for course: Course) -> Bool {

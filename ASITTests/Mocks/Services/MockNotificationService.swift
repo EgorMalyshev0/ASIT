@@ -15,8 +15,7 @@ final class MockNotificationService: NotificationServiceProtocol {
     private(set) var removedNotifications: [(courseId: UUID, upToDate: Date)] = []
     private(set) var removedNotificationsOutsideCourse: [(courseId: UUID, startDate: Date, endDate: Date)] = []
     private(set) var scheduledOneTimeReminders: [(courseId: UUID, reminderId: UUID, originalDate: Date, interval: TimeInterval)] = []
-    private(set) var updateBadgeCountCallCount = 0
-    private(set) var clearBadgeCallCount = 0
+    private(set) var refreshBadgesCallCount = 0
     /// Порядок вызовов вперемешку — для проверки, что асинхронные операции не переупорядочиваются
     private(set) var callLog: [String] = []
 
@@ -61,12 +60,8 @@ final class MockNotificationService: NotificationServiceProtocol {
     }
 
     @MainActor
-    func updateBadgeCount() async {
-        updateBadgeCountCallCount += 1
-    }
-
-    @MainActor
-    func clearBadge() async {
-        clearBadgeCallCount += 1
+    func refreshBadges(for courses: [Course]) async {
+        refreshBadgesCallCount += 1
+        callLog.append("refreshBadges")
     }
 }

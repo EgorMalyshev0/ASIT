@@ -108,7 +108,7 @@ final class NotificationService: NotificationServiceProtocol {
             dateComponents.minute = reminder.minute
 
             let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
-            let content = await makeNotificationContent(courseId: course.id, reminderId: reminder.id)
+            let content = makeNotificationContent(courseId: course.id, reminderId: reminder.id)
             let request = UNNotificationRequest(
                 identifier: dailyIdentifier(for: reminder.id, date: day),
                 content: content,
@@ -127,10 +127,11 @@ final class NotificationService: NotificationServiceProtocol {
         afterInterval interval: TimeInterval
     ) async {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let content = await makeNotificationContent(
+        let content = makeNotificationContent(
             courseId: courseId,
             reminderId: reminderId,
-            originalDate: originalDate
+            originalDate: originalDate,
+            fireDate: Date().addingTimeInterval(interval)
         )
         // Отдельный идентификатор, отличный от ежедневного напоминания
         let request = UNNotificationRequest(
@@ -218,21 +219,19 @@ final class NotificationService: NotificationServiceProtocol {
         return Calendar.current.date(from: trigger.dateComponents)
     }
 
+    /// badge здесь не задаём (nil — доставка бейдж не меняет): он зависит от всех курсов сразу
+    /// и проставляется в `refreshBadges(for:)`, который вызывается после любого планирования
     private func makeNotificationContent(
         courseId: UUID,
         reminderId: UUID,
-        originalDate: Date? = nil
-    ) async -> UNNotificationContent {
+        originalDate: Date? = nil,
+        fireDate: Date? = nil
+    ) -> UNNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = "Напоминание"
         content.body = "Пора принять лекарство"
         content.sound = .default
         content.categoryIdentifier = NotificationCategoryIdentifier.medicationReminder
-        // content.badge задаёт абсолютное значение бейджа на момент доставки, а не дельту —
-        // системе его инкрементировать не за что. Берём текущее число уже доставленных
-        // уведомлений и прибавляем это, чтобы бейдж не сбрасывался в 1 при каждом уведомлении.
-        let deliveredCount = await notificationCenter.deliveredNotificationsCount()
-        content.badge = NSNumber(value: deliveredCount + 1)
 
         var userInfo: [String: Any] = [
             "courseId": courseId.uuidString,
@@ -240,6 +239,9 @@ final class NotificationService: NotificationServiceProtocol {
         ]
         if let originalDate {
             userInfo["originalDate"] = originalDate.timeIntervalSince1970
+        }
+        if let fireDate {
+            userInfo["fireDate"] = fireDate.timeIntervalSince1970
         }
         content.userInfo = userInfo
 
@@ -278,22 +280,59 @@ final class NotificationService: NotificationServiceProtocol {
 
     // MARK: - Badge
 
-    /// Обновляет badge на основе доставленных уведомлений
+    /// Выставляет бейдж на текущий момент и пересчитывает badge во всех pending-уведомлениях (см.
+    /// `IntakeBadgeCalculator`). Пока приложение не запущено, бейдж может поменять только доставка
+    /// уведомления, а content.badge — абсолютное значение, посчитанное заранее. Оно зависит от
+    /// приёмов и настроек всех курсов, поэтому вызывать нужно после любого их изменения.
     @MainActor
-    func updateBadgeCount() async {
-        let count = await notificationCenter.deliveredNotificationsCount()
-        try? await notificationCenter.setBadgeCount(count)
+    func refreshBadges(for courses: [Course]) async {
+        let now = Date()
+        try? await notificationCenter.setBadgeCount(IntakeBadgeCalculator.overdueCourseCount(in: courses, at: now))
+
+        for request in await notificationCenter.pendingNotificationRequests() {
+            // Запрос, который вот-вот сработает, не пересоздаём: если он успеет доставиться до add,
+            // пересоздание с тем же identifier уберёт доставленное уведомление из Notification Center
+            guard request.content.userInfo["courseId"] != nil,
+                  let fireDate = fireDate(of: request),
+                  fireDate > now.addingTimeInterval(Constants.badgeRefreshSafetyInterval) else {
+                continue
+            }
+
+            let badge = IntakeBadgeCalculator.overdueCourseCount(in: courses, at: fireDate)
+            guard (request.content.badge as? Int) != badge,
+                  let content = request.content.mutableCopy() as? UNMutableNotificationContent else {
+                continue
+            }
+            content.badge = NSNumber(value: badge)
+
+            // Интервальный триггер отсчитывается от момента add — пересоздаём его на оставшееся время
+            let trigger: UNNotificationTrigger? = request.trigger is UNTimeIntervalNotificationTrigger
+                ? UNTimeIntervalNotificationTrigger(timeInterval: fireDate.timeIntervalSince(now), repeats: false)
+                : request.trigger
+            await addNotificationRequest(
+                UNNotificationRequest(identifier: request.identifier, content: content, trigger: trigger)
+            )
+        }
     }
 
-    /// Сбрасывает badge
-    @MainActor
-    func clearBadge() async {
-        try? await notificationCenter.setBadgeCount(0)
+    /// Момент срабатывания: сохранённый fireDate у snooze, дата календарного триггера у ежедневного
+    private func fireDate(of request: UNNotificationRequest) -> Date? {
+        if let timestamp = request.content.userInfo["fireDate"] as? TimeInterval {
+            return Date(timeIntervalSince1970: timestamp)
+        }
+        guard let trigger = request.trigger as? UNCalendarNotificationTrigger,
+              trigger.dateComponents.year != nil else {
+            return nil
+        }
+        return Calendar.current.date(from: trigger.dateComponents)
     }
 }
 
 private extension NotificationService {
     enum Constants {
+        /// Запросы, до срабатывания которых осталось меньше, при пересчёте бейджа не трогаем
+        static let badgeRefreshSafetyInterval: TimeInterval = 5
+
         /// Сколько дней вперёд держим материализованными индивидуальные (неповторяющиеся)
         /// уведомления. Не repeating-триггер — чтобы можно было точечно отменить конкретный день,
         /// когда приём уже состоялся, не трогая остальные дни серии. Недели достаточно, чтобы

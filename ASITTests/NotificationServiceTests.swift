@@ -77,17 +77,15 @@ struct NotificationServiceTests {
         #expect(userInfo?["originalDate"] == nil)
     }
 
-    @Test func scheduleReminder_setsBadgeToDeliveredCountPlusOne() async {
+    @Test func scheduleReminder_leavesBadgeUnset_untilRefreshBadges() async {
         let center = MockNotificationCenter()
-        center.deliveredCountToReturn = 3
         let service = NotificationService(notificationCenter: center)
         let reminder = Reminder(hour: 10, minute: 0, isEnabled: true)
         let course = makeCourse(reminders: [reminder])
 
         await service.scheduleReminder(for: course, reminder: reminder)
 
-        let badge = center.addedRequests.first?.content.badge as? Int
-        #expect(badge == 4)
+        #expect(center.addedRequests.allSatisfy { $0.content.badge == nil })
     }
 
     @Test func scheduleReminder_skipsDaysBeforeCourseStartDate() async {
@@ -431,23 +429,58 @@ struct NotificationServiceTests {
 
     // MARK: - Badge
 
-    @Test func updateBadgeCount_setsBadgeToCurrentDeliveredCount() async {
-        let center = MockNotificationCenter()
-        center.deliveredCountToReturn = 5
-        let service = NotificationService(notificationCenter: center)
-
-        await service.updateBadgeCount()
-
-        #expect(center.badgeCounts == [5])
+    private func day(_ offset: Int) -> Date {
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: .now))!
     }
 
-    @Test func clearBadge_setsBadgeToZero() async {
+    @Test func refreshBadges_setsCurrentBadgeToOverdueCourseCount() async {
         let center = MockNotificationCenter()
         let service = NotificationService(notificationCenter: center)
+        // Напоминание в 00:00 к текущему моменту уже сработало
+        let overdue = makeCourse(startDate: day(-1), reminders: [Reminder(hour: 0, minute: 0, isEnabled: true)])
+        let disabled = makeCourse(startDate: day(-1), reminders: [Reminder(hour: 0, minute: 0, isEnabled: false)])
 
-        await service.clearBadge()
+        await service.refreshBadges(for: [overdue, disabled])
 
-        #expect(center.badgeCounts == [0])
+        #expect(center.badgeCounts == [1])
+    }
+
+    @Test func refreshBadges_setsPendingBadgeToOverdueCountAtFireTime() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let morningReminder = Reminder(hour: 10, minute: 0, isEnabled: true)
+        let eveningReminder = Reminder(hour: 20, minute: 0, isEnabled: true)
+        let morning = makeCourse(startDate: day(1), reminders: [morningReminder])
+        let evening = makeCourse(startDate: day(1), reminders: [eveningReminder])
+        await service.scheduleReminder(for: morning, reminder: morningReminder)
+        await service.scheduleReminder(for: evening, reminder: eveningReminder)
+
+        await service.refreshBadges(for: [morning, evening])
+
+        func badge(_ reminder: Reminder, _ offset: Int) -> Int? {
+            center.request(identifier: dailyIdentifier(for: reminder.id, date: day(offset)))?.content.badge as? Int
+        }
+        #expect(badge(morningReminder, 1) == 1, "к первому утреннему пушу вечерний курс ещё не должен")
+        #expect(badge(eveningReminder, 1) == 2)
+        #expect(badge(morningReminder, 2) == 2, "пропущенный вчера курс остаётся в бейдже")
+    }
+
+    @Test func refreshBadges_snooze_recreatesIntervalTriggerForRemainingTime() async {
+        let center = MockNotificationCenter()
+        let service = NotificationService(notificationCenter: center)
+        let reminder = Reminder(hour: 0, minute: 0, isEnabled: true)
+        let course = makeCourse(startDate: day(-1), reminders: [reminder])
+        await service.scheduleOneTimeReminder(courseId: course.id, reminderId: reminder.id, originalDate: .now, afterInterval: 3600)
+
+        await service.refreshBadges(for: [course])
+
+        let request = center.request(identifier: "\(reminder.id.uuidString)-snooze")
+        let trigger = request?.trigger as? UNTimeIntervalNotificationTrigger
+        #expect(request?.content.badge as? Int == 1)
+        #expect((trigger?.timeInterval ?? 0) <= 3600)
+        #expect((trigger?.timeInterval ?? 0) > 3500)
+        #expect(request?.content.userInfo["fireDate"] != nil)
     }
 
     // MARK: - Setup

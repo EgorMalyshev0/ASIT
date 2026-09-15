@@ -11,7 +11,6 @@ import SwiftData
 @main
 struct ASITApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @Environment(\.scenePhase) var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -19,13 +18,6 @@ struct ASITApp: App {
                 courseService: appDelegate.serviceProvider.courseService,
                 medicationService: appDelegate.serviceProvider.medicationService
             )
-        }
-        .onChange(of: scenePhase) { _, newValue in
-            if newValue == .active {
-                Task {
-                    await appDelegate.serviceProvider.notificationService.clearBadge()
-                }
-            }
         }
     }
 }

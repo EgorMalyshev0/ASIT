@@ -19,7 +19,6 @@ final class MockNotificationCenter: NotificationCenterProviding, @unchecked Send
     private(set) var setCategories: Set<UNNotificationCategory> = []
 
     var authorizationStatusToReturn: UNAuthorizationStatus = .authorized
-    var deliveredCountToReturn = 0
     var deliveredRequests: [UNNotificationRequest] = []
     var requestAuthorizationResult: Result<Bool, Error> = .success(true)
     var addRequestError: Error?
@@ -41,15 +40,13 @@ final class MockNotificationCenter: NotificationCenterProviding, @unchecked Send
         if let addRequestError {
             throw addRequestError
         }
+        // Как и реальный центр, запрос с тем же identifier заменяет существующий
+        addedRequests.removeAll { $0.identifier == request.identifier }
         addedRequests.append(request)
     }
 
     func pendingNotificationRequests() async -> [UNNotificationRequest] {
         addedRequests
-    }
-
-    func deliveredNotificationsCount() async -> Int {
-        deliveredCountToReturn
     }
 
     func removePendingNotificationRequests(withIdentifiers identifiers: [String]) {

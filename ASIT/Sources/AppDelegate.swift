@@ -110,7 +110,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         let userInfo = notification.request.content.userInfo
-        
+
+        // При открытом приложении content.badge не применяется — пересчитываем бейдж сами
+        serviceProvider.courseService.refreshBadges()
+
         guard let courseIdString = userInfo["courseId"] as? String,
               let courseId = UUID(uuidString: courseIdString),
               let course = serviceProvider.courseService.courses.first(where: { $0.id == courseId }) else {
@@ -171,7 +174,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 originalDate: intakeDate,
                 afterInterval: 3600 // 1 час
             )
-            
+            await serviceProvider.courseService.refreshBadges().value
+
         default:
             break
         }
