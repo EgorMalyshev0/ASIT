@@ -59,12 +59,11 @@ final class IntakeAddingViewModel {
             courseService.deleteIntake(existingIntake, from: course)
         }
         
-        let intake = Intake(
-            date: date,
+        let intake = Intake.makeTaken(
+            on: date,
             medicationId: course.medicationId,
             variantId: selectedVariantId,
-            dosage: selectedDosage,
-            comment: nil
+            dosage: selectedDosage
         )
         
         courseService.addIntake(intake, to: course)

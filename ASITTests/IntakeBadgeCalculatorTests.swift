@@ -20,14 +20,14 @@ struct IntakeBadgeCalculatorTests {
     }
 
     /// Курс с -10 по +10 день с напоминанием в 10:00
-    private func makeCourse(isReminderEnabled: Bool = true) -> Course {
+    private func makeCourse(isNotificationEnabled: Bool = true) -> Course {
         let course = Course(
             medicationId: "staloral_birch_pollen",
             takingYear: .first,
             startDate: day(-10),
             endDate: day(10)
         )
-        course.reminders = [Reminder(hour: 10, minute: 0, isEnabled: isReminderEnabled)]
+        course.schedules = [IntakeSchedule(hour: 10, minute: 0, isNotificationEnabled: isNotificationEnabled)]
         return course
     }
 
@@ -79,7 +79,7 @@ struct IntakeBadgeCalculatorTests {
     }
 
     @Test func disabledReminder_notOverdue() {
-        let course = makeCourse(isReminderEnabled: false)
+        let course = makeCourse(isNotificationEnabled: false)
 
         #expect(!IntakeBadgeCalculator.isIntakeOverdue(for: course, at: day(0, hour: 12)))
     }

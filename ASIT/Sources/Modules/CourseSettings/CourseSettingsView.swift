@@ -74,7 +74,7 @@ struct CourseSettingsView: View {
             #endif
         }
         .navigationTitle(viewModel.state.name)
-        .animation(.default, value: viewModel.state.isReminderEnabled)
+        .animation(.default, value: viewModel.state.isNotificationEnabled)
         .animation(.default, value: viewModel.state.isPaused)
         .animation(.default, value: viewModel.state.isCompleted)
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
@@ -99,14 +99,14 @@ struct CourseSettingsView: View {
         Section {
             Toggle("Отправлять ежедневное уведомление",
                    isOn: Binding(
-                    get: { viewModel.state.isReminderEnabled },
-                    set: { viewModel.setReminderEnabled($0) }
+                    get: { viewModel.state.isNotificationEnabled },
+                    set: { viewModel.setNotificationsEnabled($0) }
                    )
             )
 
-            if viewModel.state.isReminderEnabled {
-                DatePicker("Время", selection: Binding(get: { viewModel.state.reminderDate },
-                                                       set: { viewModel.updateReminderTime($0) }),
+            if viewModel.state.isNotificationEnabled {
+                DatePicker("Время", selection: Binding(get: { viewModel.state.intakeTime },
+                                                       set: { viewModel.updateIntakeTime($0) }),
                            displayedComponents: .hourAndMinute)
             }
         } header: {

@@ -10,11 +10,11 @@ import UserNotifications
 @testable import ASIT
 
 final class MockNotificationService: NotificationServiceProtocol {
-    private(set) var scheduledReminders: [(course: Course, reminder: Reminder)] = []
-    private(set) var canceledReminders: [Reminder] = []
+    private(set) var scheduledNotifications: [(course: Course, schedule: IntakeSchedule)] = []
+    private(set) var canceledNotifications: [IntakeSchedule] = []
     private(set) var removedNotifications: [(courseId: UUID, upToDate: Date)] = []
     private(set) var removedNotificationsOutsideCourse: [(courseId: UUID, startDate: Date, endDate: Date)] = []
-    private(set) var scheduledOneTimeReminders: [(courseId: UUID, reminderId: UUID, originalDate: Date, interval: TimeInterval)] = []
+    private(set) var scheduledSnoozes: [(courseId: UUID, scheduleId: UUID, originalDate: Date, interval: TimeInterval)] = []
     private(set) var refreshBadgesCallCount = 0
     /// Порядок вызовов вперемешку — для проверки, что асинхронные операции не переупорядочиваются
     private(set) var callLog: [String] = []
@@ -29,24 +29,24 @@ final class MockNotificationService: NotificationServiceProtocol {
         authorizationGranted ? .authorized : .denied
     }
 
-    func scheduleReminder(for course: Course, reminder: Reminder) async {
-        scheduledReminders.append((course, reminder))
-        callLog.append("schedule:\(reminder.id)")
+    func scheduleNotifications(for course: Course, schedule: IntakeSchedule) async {
+        scheduledNotifications.append((course, schedule))
+        callLog.append("schedule:\(schedule.id)")
     }
 
-    func scheduleOneTimeReminder(
+    func scheduleSnoozeNotification(
         courseId: UUID,
-        reminderId: UUID,
+        scheduleId: UUID,
         originalDate: Date,
         afterInterval interval: TimeInterval
     ) async {
-        scheduledOneTimeReminders.append((courseId, reminderId, originalDate, interval))
-        callLog.append("scheduleOneTime:\(reminderId)")
+        scheduledSnoozes.append((courseId, scheduleId, originalDate, interval))
+        callLog.append("scheduleOneTime:\(scheduleId)")
     }
 
-    func cancelReminder(_ reminder: Reminder) {
-        canceledReminders.append(reminder)
-        callLog.append("cancel:\(reminder.id)")
+    func cancelNotifications(_ schedule: IntakeSchedule) {
+        canceledNotifications.append(schedule)
+        callLog.append("cancel:\(schedule.id)")
     }
 
     func removeNotifications(forCourseId courseId: UUID, upTo date: Date) async {

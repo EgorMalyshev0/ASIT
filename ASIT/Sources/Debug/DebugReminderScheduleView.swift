@@ -74,7 +74,7 @@ struct DebugReminderScheduleView: View {
             }
 
             let relevantRequests = pendingRequests
-                .filter { request in course.reminders.contains { request.identifier.hasPrefix("\($0.id.uuidString)-") } }
+                .filter { request in course.schedules.contains { request.identifier.hasPrefix("\($0.id.uuidString)-") } }
                 .sorted { (fireDate(for: $0) ?? .distantFuture) < (fireDate(for: $1) ?? .distantFuture) }
 
             if relevantRequests.isEmpty {

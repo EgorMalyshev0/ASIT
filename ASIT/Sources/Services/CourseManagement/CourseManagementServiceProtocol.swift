@@ -28,10 +28,10 @@ protocol CourseManagementServiceProtocol: AnyObject {
     func updateIntake(_ intake: Intake)
     func deleteIntake(_ intake: Intake, from course: Course)
     
-    // MARK: - Reminder CRUD
+    // MARK: - IntakeSchedule CRUD
     func handleTakenActionFromPush(courseId: UUID, date: Date)
-    func setReminderEnabled(_ isEnabled: Bool, course: Course)
-    func updateReminderTime(_ newTime: Date, course: Course)
+    func setNotificationsEnabled(_ isNotificationEnabled: Bool, course: Course)
+    func updateIntakeTime(_ newTime: Date, course: Course)
 
     // MARK: - Pause
     func pauseCourse(_ course: Course)

@@ -16,7 +16,7 @@ final class CourseSettingsViewModel {
     private let courseService: CourseManagementServiceProtocol
     private let medicationService: MedicationServiceProtocol
     private var cancellables = Set<AnyCancellable>()
-    private var reminderUpdateTask: Task<Void, Never>?
+    private var intakeTimeUpdateTask: Task<Void, Never>?
 
     init(course: Course, courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         self.course = course
@@ -25,16 +25,16 @@ final class CourseSettingsViewModel {
         updateState(for: course)
     }
 
-    func setReminderEnabled(_ isEnabled: Bool) {
-        state.isReminderEnabled = isEnabled
-        courseService.setReminderEnabled(isEnabled, course: course)
+    func setNotificationsEnabled(_ isNotificationEnabled: Bool) {
+        state.isNotificationEnabled = isNotificationEnabled
+        courseService.setNotificationsEnabled(isNotificationEnabled, course: course)
     }
 
-    func updateReminderTime(_ newTime: Date) {
-        state.reminderDate = newTime
-        reminderUpdateTask?.cancel()
+    func updateIntakeTime(_ newTime: Date) {
+        state.intakeTime = newTime
+        intakeTimeUpdateTask?.cancel()
 
-        reminderUpdateTask = Task { [weak self] in
+        intakeTimeUpdateTask = Task { [weak self] in
             do {
                 try await Task.sleep(for: .milliseconds(500))
             } catch {
@@ -45,7 +45,7 @@ final class CourseSettingsViewModel {
                 return
             }
 
-            courseService.updateReminderTime(newTime, course: course)
+            courseService.updateIntakeTime(newTime, course: course)
         }
     }
 
@@ -92,16 +92,16 @@ final class CourseSettingsViewModel {
 
     @MainActor
     private func updateState(for course: Course) {
-        let reminder = course.reminders.first ?? Reminder.makeDefault()
+        let schedule = course.schedules.first ?? IntakeSchedule.makeDefault()
         let name = medicationService.medication(withId: course.medicationId)?.name.ru ?? course.medicationId
 
         let state = CourseSettingsState(
-            isReminderEnabled: reminder.isEnabled,
+            isNotificationEnabled: schedule.isNotificationEnabled,
             isPaused: course.isPaused,
             isCompleted: course.isCompleted,
             progress: CourseProgress(course: course),
             name: name,
-            reminderDate: reminder.dateFromComponents ?? Date()
+            intakeTime: schedule.intakeTime(on: Date()) ?? Date()
         )
 
         self.state = state
@@ -109,12 +109,12 @@ final class CourseSettingsViewModel {
 }
 
 struct CourseSettingsState {
-    var isReminderEnabled: Bool
+    var isNotificationEnabled: Bool
     var isPaused: Bool
     var isCompleted: Bool
     var progress: CourseProgress
     let name: String
-    var reminderDate: Date
+    var intakeTime: Date
 
-    static let empty = CourseSettingsState(isReminderEnabled: false, isPaused: false, isCompleted: false, progress: .empty, name: "", reminderDate: .distantFuture)
+    static let empty = CourseSettingsState(isNotificationEnabled: false, isPaused: false, isCompleted: false, progress: .empty, name: "", intakeTime: .distantFuture)
 }

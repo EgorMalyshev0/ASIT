@@ -21,7 +21,7 @@ final class Course: Sendable {
     var intakes: [Intake]
     
     @Relationship(deleteRule: .cascade)
-    var reminders: [Reminder]
+    var schedules: [IntakeSchedule]
 
     @Relationship(deleteRule: .cascade)
     var pauses: [CoursePause]
@@ -32,7 +32,7 @@ final class Course: Sendable {
         startDate: Date,
         endDate: Date,
         intakes: [Intake] = [],
-        reminders: [Reminder] = []
+        schedules: [IntakeSchedule] = []
     ) {
         self.id = UUID()
         self.medicationId = medicationId
@@ -40,7 +40,7 @@ final class Course: Sendable {
         self.startDate = startDate
         self.endDate = endDate
         self.intakes = []
-        self.reminders = []
+        self.schedules = []
         self.pauses = []
     }
     

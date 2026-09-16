@@ -24,7 +24,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     private var reminderSchedulingTask: Task<Void, Never>?
 
     init(inMemory: Bool = false, notificationService: NotificationServiceProtocol) {
-        let schema = Schema([Course.self, Intake.self, Reminder.self, CoursePause.self])
+        let schema = Schema([Course.self, Intake.self, IntakeSchedule.self, CoursePause.self])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
 
         do {
@@ -36,7 +36,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         self.modelContext = ModelContext(modelContainer)
         self.notificationService = notificationService
         fetchCourses()
-        refreshAllReminderSchedules()
+        refreshAllNotificationSchedules()
     }
 
     #if DEBUG
@@ -50,7 +50,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     
     func addCourse(_ course: Course) {
         // сразу кладем дефолтный выключенный ремайндер
-        course.reminders = [Reminder.makeDefault()]
+        course.schedules = [IntakeSchedule.makeDefault()]
         modelContext.insert(course)
         save()
         fetchCourses()
@@ -62,10 +62,10 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     }
     
     func deleteCourse(_ course: Course) {
-        // SwiftData каскадно удалит записи Reminder из БД, но это не отменяет уже
+        // SwiftData каскадно удалит записи IntakeSchedule из БД, но это не отменяет уже
         // запланированные UNNotificationRequest в очереди iOS — делаем это явно
-        for reminder in course.reminders {
-            notificationService.cancelReminder(reminder)
+        for schedule in course.schedules {
+            notificationService.cancelNotifications(schedule)
         }
 
         modelContext.delete(course)
@@ -118,7 +118,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
         // Дата приёма могла поменяться — курс снова может ждать приёма
-        refreshAllReminderSchedules()
+        refreshAllNotificationSchedules()
     }
     
     func deleteIntake(_ intake: Intake, from course: Course) {
@@ -130,42 +130,42 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
         // Без приёма курс снова ждёт его, а сегодняшнее напоминание, убранное при отметке, нужно вернуть
-        refreshAllReminderSchedules()
+        refreshAllNotificationSchedules()
     }
     
-    // MARK: - Reminder CRUD
+    // MARK: - IntakeSchedule CRUD
 
-    func setReminderEnabled(_ isEnabled: Bool, course: Course) {
-        let reminder = course.reminders.first ?? Reminder.makeDefault()
-        reminder.isEnabled = isEnabled
-        course.reminders = [reminder]
+    func setNotificationsEnabled(_ isNotificationEnabled: Bool, course: Course) {
+        let schedule = course.schedules.first ?? IntakeSchedule.makeDefault()
+        schedule.isNotificationEnabled = isNotificationEnabled
+        course.schedules = [schedule]
         save()
         fetchCourses()
 
         enqueueReminderTask { [self] in
-            if isEnabled && canScheduleReminders(for: course) {
-                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            if isNotificationEnabled && canScheduleReminders(for: course) {
+                await notificationService.scheduleNotifications(for: course, schedule: schedule)
             } else {
-                notificationService.cancelReminder(reminder)
+                notificationService.cancelNotifications(schedule)
             }
             await refreshBadgesForCurrentCourses()
         }
     }
 
-    func updateReminderTime(_ newTime: Date, course: Course) {
-        let reminder = course.reminders.first ?? Reminder.makeDefault()
+    func updateIntakeTime(_ newTime: Date, course: Course) {
+        let schedule = course.schedules.first ?? IntakeSchedule.makeDefault()
         let components = Calendar.current.dateComponents([.hour, .minute], from: newTime)
 
-        reminder.hour = components.hour ?? Reminder.defaultHour
-        reminder.minute = components.minute ?? Reminder.defaultMinute
-        course.reminders = [reminder]
+        schedule.hour = components.hour ?? IntakeSchedule.defaultHour
+        schedule.minute = components.minute ?? IntakeSchedule.defaultMinute
+        course.schedules = [schedule]
         save()
         fetchCourses()
 
         enqueueReminderTask { [self] in
-            notificationService.cancelReminder(reminder)
-            if reminder.isEnabled && canScheduleReminders(for: course) {
-                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            notificationService.cancelNotifications(schedule)
+            if schedule.isNotificationEnabled && canScheduleReminders(for: course) {
+                await notificationService.scheduleNotifications(for: course, schedule: schedule)
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -190,10 +190,10 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
 
-        let reminders = course.reminders
+        let reminders = course.schedules
         enqueueReminderTask { [self] in
-            for reminder in reminders {
-                notificationService.cancelReminder(reminder)
+            for schedule in reminders {
+                notificationService.cancelNotifications(schedule)
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -215,10 +215,10 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         save()
         fetchCourses()
 
-        let enabledReminders = canScheduleReminders(for: course) ? course.reminders.filter(\.isEnabled) : []
+        let enabledReminders = canScheduleReminders(for: course) ? course.schedules.filter(\.isNotificationEnabled) : []
         enqueueReminderTask { [self] in
-            for reminder in enabledReminders {
-                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            for schedule in enabledReminders {
+                await notificationService.scheduleNotifications(for: course, schedule: schedule)
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -255,12 +255,12 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
         let courseId = course.id
         // Курс на паузе или уже завершённый (дату окончания перенесли в прошлое) не планируем
-        let enabledReminders = canScheduleReminders(for: course) ? course.reminders.filter(\.isEnabled) : []
+        let enabledReminders = canScheduleReminders(for: course) ? course.schedules.filter(\.isNotificationEnabled) : []
         enqueueReminderTask { [self] in
             await notificationService.removeNotifications(forCourseId: courseId, outsideOf: start, end)
             // Окно могло сдвинуться: например, старт перенесли на более раннюю дату
-            for reminder in enabledReminders {
-                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            for schedule in enabledReminders {
+                await notificationService.scheduleNotifications(for: course, schedule: schedule)
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -311,14 +311,14 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     /// заменяют существующие с теми же идентификаторами. Возвращает Task, чтобы вызывающий (например,
     /// обработчик BGAppRefreshTask) при желании мог дождаться завершения.
     @discardableResult
-    func refreshAllReminderSchedules() -> Task<Void, Never> {
+    func refreshAllNotificationSchedules() -> Task<Void, Never> {
         let enabledPairs = courses.filter(canScheduleReminders).flatMap { course in
-            course.reminders.filter(\.isEnabled).map { (course, $0) }
+            course.schedules.filter(\.isNotificationEnabled).map { (course, $0) }
         }
 
         return enqueueReminderTask { [self] in
-            for (course, reminder) in enabledPairs {
-                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            for (course, schedule) in enabledPairs {
+                await notificationService.scheduleNotifications(for: course, schedule: schedule)
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -345,12 +345,11 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             return
         }
 
-        let intake = Intake(
-            date: date,
+        let intake = Intake.makeTaken(
+            on: date,
             medicationId: course.medicationId,
             variantId: lastIntake.variantId,
-            dosage: lastIntake.dosage,
-            comment: nil
+            dosage: lastIntake.dosage
         )
 
         addIntake(intake, to: course)
@@ -369,9 +368,9 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         }
         
         // Добавляем напоминания
-        for reminderDTO in dto.course.reminders {
-            let reminder = reminderDTO.toReminder()
-            course.reminders.append(reminder)
+        for reminderDTO in dto.course.schedules {
+            let schedule = reminderDTO.toSchedule()
+            course.schedules.append(schedule)
         }
 
         course.pauses.append(contentsOf: dto.course.createPauses())
@@ -380,11 +379,11 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
         
         // Планируем напоминания — только включённые, иначе импорт курса с выключенным
-        // напоминанием тут же создавал бы живое уведомление в обход isEnabled. Курс на паузе и завершённый не планируем вовсе
-        let enabledReminders = canScheduleReminders(for: course) ? course.reminders.filter(\.isEnabled) : []
+        // напоминанием тут же создавал бы живое уведомление в обход isNotificationEnabled. Курс на паузе и завершённый не планируем вовсе
+        let enabledReminders = canScheduleReminders(for: course) ? course.schedules.filter(\.isNotificationEnabled) : []
         enqueueReminderTask { [self] in
-            for reminder in enabledReminders {
-                await notificationService.scheduleReminder(for: course, reminder: reminder)
+            for schedule in enabledReminders {
+                await notificationService.scheduleNotifications(for: course, schedule: schedule)
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -463,9 +462,9 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
         }
     }
 
-    func setReminderEnabled(_ isEnabled: Bool, course: Course) {}
+    func setNotificationsEnabled(_ isNotificationEnabled: Bool, course: Course) {}
 
-    func updateReminderTime(_ newTime: Date, course: Course) {}
+    func updateIntakeTime(_ newTime: Date, course: Course) {}
 
     func pauseCourse(_ course: Course) {
         guard !course.isPaused, !course.isCompleted else {
@@ -492,8 +491,8 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
         for intakeDTO in dto.course.intakes {
             course.intakes.append(intakeDTO.toIntake())
         }
-        for reminderDTO in dto.course.reminders {
-            course.reminders.append(reminderDTO.toReminder())
+        for reminderDTO in dto.course.schedules {
+            course.schedules.append(reminderDTO.toSchedule())
         }
         course.pauses.append(contentsOf: dto.course.createPauses())
         courses.append(course)

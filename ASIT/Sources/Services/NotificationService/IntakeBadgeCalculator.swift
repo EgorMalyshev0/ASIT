@@ -16,27 +16,27 @@ enum IntakeBadgeCalculator {
         courses.filter { isIntakeOverdue(for: $0, at: date) }.count
     }
 
-    /// Курс ждёт приёма, если последнее напоминание к моменту `date` уже сработало, а приёма на его
-    /// день или позже нет. Напоминание срабатывает каждый день курса вне паузы, поэтому последний
-    /// такой день — сегодня (если время напоминания уже наступило) или вчера. Завершённый курс,
-    /// курс на паузе и курс с выключенным напоминанием приёма не ждут. Считаем по текущему времени
-    /// напоминания: если его перенесли после срабатывания, курс может выпасть из бейджа до нового времени
+    /// Курс ждёт приёма, если плановое время последнего приёма к моменту `date` уже прошло, а приёма
+    /// на его день или позже нет. Приём запланирован на каждый день курса вне паузы, поэтому последний
+    /// такой день — сегодня (если время приёма уже наступило) или вчера. Завершённый курс, курс на
+    /// паузе и курс с выключенными уведомлениями в бейдж не попадают. Считаем по текущему времени
+    /// приёма: если его перенесли после срабатывания, курс может выпасть из бейджа до нового времени
     static func isIntakeOverdue(for course: Course, at date: Date) -> Bool {
         let calendar = Calendar.current
-        guard let reminder = course.reminders.first(where: \.isEnabled),
+        guard let schedule = course.schedules.first(where: \.isNotificationEnabled),
               course.isActive(on: date),
               !course.isPaused(on: date),
-              let reminderTime = calendar.date(bySettingHour: reminder.hour, minute: reminder.minute, second: 0, of: date) else {
+              let intakeTime = schedule.intakeTime(on: date, calendar: calendar) else {
             return false
         }
 
         let today = calendar.startOfDay(for: date)
-        guard let lastReminderDay = reminderTime <= date ? today : calendar.date(byAdding: .day, value: -1, to: today),
-              course.isActive(on: lastReminderDay),
-              !course.isPaused(on: lastReminderDay) else {
+        guard let lastIntakeDay = intakeTime <= date ? today : calendar.date(byAdding: .day, value: -1, to: today),
+              course.isActive(on: lastIntakeDay),
+              !course.isPaused(on: lastIntakeDay) else {
             return false
         }
 
-        return !course.intakes.contains { calendar.startOfDay(for: $0.date) >= lastReminderDay }
+        return !course.intakes.contains { calendar.startOfDay(for: $0.date) >= lastIntakeDay }
     }
 }

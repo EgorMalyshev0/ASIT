@@ -40,7 +40,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Дешёвая оппортунистическая подстраховка на каждый возврат в foreground — не полагаемся
         // только на BGAppRefreshTask, у которого нет гарантий по времени срабатывания
-        serviceProvider.courseService.refreshAllReminderSchedules()
+        serviceProvider.courseService.refreshAllNotificationSchedules()
         #if DEBUG
         BGTaskDiagnostics.recordRun(outcome: "foreground-refresh")
         #endif
@@ -56,7 +56,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             BGTaskDiagnostics.recordScheduled(earliestBeginDate: request.earliestBeginDate)
             #endif
         } catch {
-            print("Failed to schedule reminder refresh task: \(error)")
+            print("Failed to schedule schedule refresh task: \(error)")
         }
     }
 
@@ -75,7 +75,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             task.setTaskCompleted(success: false)
         }
 
-        let refreshTask = courseService.refreshAllReminderSchedules()
+        let refreshTask = courseService.refreshAllNotificationSchedules()
 
         Task {
             await refreshTask.value
@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             BGTaskDiagnostics.recordScheduled(earliestBeginDate: request.earliestBeginDate)
             #endif
         } catch {
-            print("Failed to schedule next reminder refresh task: \(error)")
+            print("Failed to schedule next schedule refresh task: \(error)")
         }
     }
 
@@ -154,8 +154,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
         case NotificationActionIdentifier.snoozeOneHour:
             // Откладываем напоминание на час от текущего времени.
-            guard let reminderIdString = userInfo["reminderId"] as? String,
-                  let reminderId = UUID(uuidString: reminderIdString) else {
+            guard let scheduleIdString = userInfo["scheduleId"] as? String,
+                  let scheduleId = UUID(uuidString: scheduleIdString) else {
                 return
             }
 
@@ -168,9 +168,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 return
             }
 
-            await serviceProvider.notificationService.scheduleOneTimeReminder(
+            await serviceProvider.notificationService.scheduleSnoozeNotification(
                 courseId: courseId,
-                reminderId: reminderId,
+                scheduleId: scheduleId,
                 originalDate: intakeDate,
                 afterInterval: 3600 // 1 час
             )

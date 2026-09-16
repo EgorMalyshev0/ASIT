@@ -11,14 +11,14 @@ import UserNotifications
 protocol NotificationServiceProtocol: AnyObject {
     func requestAuthorization() async -> Bool
     func checkAuthorizationStatus() async -> UNAuthorizationStatus
-    func scheduleReminder(for course: Course, reminder: Reminder) async
-    func scheduleOneTimeReminder(
+    func scheduleNotifications(for course: Course, schedule: IntakeSchedule) async
+    func scheduleSnoozeNotification(
         courseId: UUID,
-        reminderId: UUID,
+        scheduleId: UUID,
         originalDate: Date,
         afterInterval interval: TimeInterval
     ) async
-    func cancelReminder(_ reminder: Reminder)
+    func cancelNotifications(_ schedule: IntakeSchedule)
     func removeNotifications(forCourseId courseId: UUID, upTo date: Date) async
     func removeNotifications(forCourseId courseId: UUID, outsideOf startDate: Date, _ endDate: Date) async
     @MainActor func refreshBadges(for courses: [Course]) async

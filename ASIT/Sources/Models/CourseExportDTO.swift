@@ -28,7 +28,7 @@ struct CourseDTO: Codable {
     let startDate: Date
     let endDate: Date
     let intakes: [IntakeDTO]
-    let reminders: [ReminderDTO]
+    let schedules: [IntakeScheduleDTO]
     let pauses: [CoursePauseDTO]
     
     init(course: Course) {
@@ -37,7 +37,7 @@ struct CourseDTO: Codable {
         self.startDate = course.startDate
         self.endDate = course.endDate
         self.intakes = course.intakes.map { IntakeDTO(intake: $0) }
-        self.reminders = course.reminders.map { ReminderDTO(reminder: $0) }
+        self.schedules = course.schedules.map { IntakeScheduleDTO(schedule: $0) }
         self.pauses = course.pauses.map { CoursePauseDTO(pause: $0) }
     }
     
@@ -55,8 +55,8 @@ struct CourseDTO: Codable {
         intakes.map { $0.toIntake() }
     }
     
-    func createReminders() -> [Reminder] {
-        reminders.map { $0.toReminder() }
+    func createSchedules() -> [IntakeSchedule] {
+        schedules.map { $0.toSchedule() }
     }
 
     func createPauses() -> [CoursePause] {
@@ -65,7 +65,10 @@ struct CourseDTO: Codable {
 }
 
 struct IntakeDTO: Codable {
+    /// День курса, к которому относится приём
     let date: Date
+    /// Фактический момент приёма; nil — приём отмечен задним числом
+    let takenAt: Date?
     let medicationId: String
     let variantId: String
     let dosage: Dosage
@@ -73,6 +76,7 @@ struct IntakeDTO: Codable {
     
     init(intake: Intake) {
         self.date = intake.date
+        self.takenAt = intake.takenAt
         self.medicationId = intake.medicationId
         self.variantId = intake.variantId
         self.dosage = intake.dosage
@@ -82,6 +86,7 @@ struct IntakeDTO: Codable {
     func toIntake() -> Intake {
         Intake(
             date: date,
+            takenAt: takenAt,
             medicationId: medicationId,
             variantId: variantId,
             dosage: dosage,
@@ -90,19 +95,19 @@ struct IntakeDTO: Codable {
     }
 }
 
-struct ReminderDTO: Codable {
+struct IntakeScheduleDTO: Codable {
     let hour: Int
     let minute: Int
-    let isEnabled: Bool
+    let isNotificationEnabled: Bool
 
-    init(reminder: Reminder) {
-        self.hour = reminder.hour
-        self.minute = reminder.minute
-        self.isEnabled = reminder.isEnabled
+    init(schedule: IntakeSchedule) {
+        self.hour = schedule.hour
+        self.minute = schedule.minute
+        self.isNotificationEnabled = schedule.isNotificationEnabled
     }
     
-    func toReminder() -> Reminder {
-        Reminder(hour: hour, minute: minute, isEnabled: isEnabled)
+    func toSchedule() -> IntakeSchedule {
+        IntakeSchedule(hour: hour, minute: minute, isNotificationEnabled: isNotificationEnabled)
     }
 }
 

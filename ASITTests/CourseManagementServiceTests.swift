@@ -33,10 +33,10 @@ struct CourseManagementServiceTests {
 
         service.addCourse(course)
 
-        #expect(course.reminders.count == 1)
-        #expect(course.reminders.first?.isEnabled == false)
-        #expect(notificationService.scheduledReminders.isEmpty)
-        #expect(notificationService.canceledReminders.isEmpty)
+        #expect(course.schedules.count == 1)
+        #expect(course.schedules.first?.isNotificationEnabled == false)
+        #expect(notificationService.scheduledNotifications.isEmpty)
+        #expect(notificationService.canceledNotifications.isEmpty)
     }
 
     // MARK: - setReminderEnabled
@@ -47,12 +47,12 @@ struct CourseManagementServiceTests {
         let course = makeCourse()
         service.addCourse(course)
 
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.scheduledReminders.count == 1)
-        #expect(notificationService.scheduledReminders.first?.reminder.id == course.reminders.first?.id)
-        #expect(course.reminders.first?.isEnabled == true)
+        #expect(notificationService.scheduledNotifications.count == 1)
+        #expect(notificationService.scheduledNotifications.first?.schedule.id == course.schedules.first?.id)
+        #expect(course.schedules.first?.isNotificationEnabled == true)
     }
 
     @Test func setReminderEnabled_false_cancelsReminder() async {
@@ -60,14 +60,14 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
         let course = makeCourse()
         service.addCourse(course)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
 
-        service.setReminderEnabled(false, course: course)
+        service.setNotificationsEnabled(false, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.canceledReminders.count == 1)
-        #expect(course.reminders.first?.isEnabled == false)
+        #expect(notificationService.canceledNotifications.count == 1)
+        #expect(course.schedules.first?.isNotificationEnabled == false)
     }
 
     @Test func setReminderEnabled_rapidToggleOnThenOff_endsUpCanceledNotScheduled() async {
@@ -78,8 +78,8 @@ struct CourseManagementServiceTests {
         let course = makeCourse()
         service.addCourse(course)
 
-        service.setReminderEnabled(true, course: course)
-        service.setReminderEnabled(false, course: course)
+        service.setNotificationsEnabled(true, course: course)
+        service.setNotificationsEnabled(false, course: course)
         await service.waitForPendingReminderTask()
 
         #expect(notificationService.callLog.last { $0 != "refreshBadges" }?.hasPrefix("cancel:") == true)
@@ -93,17 +93,17 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
         let course = makeCourse()
         service.addCourse(course)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
 
         let newTime = Calendar.current.date(bySettingHour: 18, minute: 15, second: 0, of: .now)!
-        service.updateReminderTime(newTime, course: course)
+        service.updateIntakeTime(newTime, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(course.reminders.first?.hour == 18)
-        #expect(course.reminders.first?.minute == 15)
-        #expect(notificationService.canceledReminders.count == 1)
-        #expect(notificationService.scheduledReminders.count == 2, "исходное включение + перепланирование после смены времени")
+        #expect(course.schedules.first?.hour == 18)
+        #expect(course.schedules.first?.minute == 15)
+        #expect(notificationService.canceledNotifications.count == 1)
+        #expect(notificationService.scheduledNotifications.count == 2, "исходное включение + перепланирование после смены времени")
     }
 
     @Test func updateReminderTime_onDisabledReminder_onlyCancelsDoesNotReschedule() async {
@@ -113,11 +113,11 @@ struct CourseManagementServiceTests {
         service.addCourse(course)
 
         let newTime = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: .now)!
-        service.updateReminderTime(newTime, course: course)
+        service.updateIntakeTime(newTime, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.canceledReminders.count == 1)
-        #expect(notificationService.scheduledReminders.isEmpty)
+        #expect(notificationService.canceledNotifications.count == 1)
+        #expect(notificationService.scheduledNotifications.isEmpty)
     }
 
     // MARK: - deleteCourse
@@ -130,7 +130,7 @@ struct CourseManagementServiceTests {
 
         service.deleteCourse(course)
 
-        #expect(notificationService.canceledReminders.count == 1)
+        #expect(notificationService.canceledNotifications.count == 1)
         #expect(service.courses.contains { $0.id == course.id } == false)
     }
 
@@ -187,14 +187,14 @@ struct CourseManagementServiceTests {
 
     @Test func importCourse_schedulesOnlyEnabledReminders() async {
         // Регрессия: импорт курса с выключенным напоминанием не должен тут же
-        // создавать живое уведомление в обход isEnabled.
+        // создавать живое уведомление в обход isNotificationEnabled.
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
 
         let sourceCourse = makeCourse()
-        let enabledReminder = Reminder(hour: 9, minute: 0, isEnabled: true)
-        let disabledReminder = Reminder(hour: 21, minute: 0, isEnabled: false)
-        sourceCourse.reminders = [enabledReminder, disabledReminder]
+        let enabledReminder = IntakeSchedule(hour: 9, minute: 0, isNotificationEnabled: true)
+        let disabledReminder = IntakeSchedule(hour: 21, minute: 0, isNotificationEnabled: false)
+        sourceCourse.schedules = [enabledReminder, disabledReminder]
         let dto = CourseExportDTO(course: sourceCourse)
 
         service.importCourse(from: dto)
@@ -202,9 +202,9 @@ struct CourseManagementServiceTests {
         await Task.yield()
         try? await Task.sleep(for: .milliseconds(50))
 
-        #expect(notificationService.scheduledReminders.count == 1)
-        #expect(notificationService.scheduledReminders.first?.reminder.isEnabled == true)
-        #expect(notificationService.scheduledReminders.first?.reminder.hour == 9)
+        #expect(notificationService.scheduledNotifications.count == 1)
+        #expect(notificationService.scheduledNotifications.first?.schedule.isNotificationEnabled == true)
+        #expect(notificationService.scheduledNotifications.first?.schedule.hour == 9)
     }
 
     @Test func importCourse_allRemindersDisabled_schedulesNothing() async {
@@ -212,14 +212,14 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
 
         let sourceCourse = makeCourse()
-        sourceCourse.reminders = [Reminder(hour: 9, minute: 0, isEnabled: false)]
+        sourceCourse.schedules = [IntakeSchedule(hour: 9, minute: 0, isNotificationEnabled: false)]
         let dto = CourseExportDTO(course: sourceCourse)
 
         service.importCourse(from: dto)
         await Task.yield()
         try? await Task.sleep(for: .milliseconds(50))
 
-        #expect(notificationService.scheduledReminders.isEmpty)
+        #expect(notificationService.scheduledNotifications.isEmpty)
     }
 
     // MARK: - addIntake restrictions
@@ -263,7 +263,7 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
         let course = makeCourse()
         service.addCourse(course)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
 
         service.pauseCourse(course)
@@ -271,7 +271,7 @@ struct CourseManagementServiceTests {
 
         #expect(course.isPaused)
         #expect(course.isPaused(on: .now))
-        #expect(notificationService.canceledReminders.count == 1)
+        #expect(notificationService.canceledNotifications.count == 1)
         #expect(notificationService.callLog.suffix(2).first?.hasPrefix("cancel:") == true)
         #expect(notificationService.callLog.last == "refreshBadges")
     }
@@ -308,11 +308,11 @@ struct CourseManagementServiceTests {
         service.addCourse(course)
         service.pauseCourse(course)
 
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(course.reminders.first?.isEnabled == true)
-        #expect(notificationService.scheduledReminders.isEmpty)
+        #expect(course.schedules.first?.isNotificationEnabled == true)
+        #expect(notificationService.scheduledNotifications.isEmpty)
     }
 
     @Test func refreshAllReminderSchedules_skipsPausedCourses() async {
@@ -320,14 +320,14 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
         let course = makeCourse()
         service.addCourse(course)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         service.pauseCourse(course)
         await service.waitForPendingReminderTask()
-        let scheduledBefore = notificationService.scheduledReminders.count
+        let scheduledBefore = notificationService.scheduledNotifications.count
 
-        await service.refreshAllReminderSchedules().value
+        await service.refreshAllNotificationSchedules().value
 
-        #expect(notificationService.scheduledReminders.count == scheduledBefore)
+        #expect(notificationService.scheduledNotifications.count == scheduledBefore)
     }
 
     @Test func handleTakenActionFromPush_pausedDay_addsNothing() {
@@ -373,17 +373,17 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
         let course = makeCourse()
         service.addCourse(course)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         service.pauseCourse(course)
         await service.waitForPendingReminderTask()
-        let scheduledBefore = notificationService.scheduledReminders.count
+        let scheduledBefore = notificationService.scheduledNotifications.count
 
         service.resumeCourse(course)
         await service.waitForPendingReminderTask()
 
         #expect(!course.isPaused)
         #expect(course.pauses.isEmpty)
-        #expect(notificationService.scheduledReminders.count == scheduledBefore + 1)
+        #expect(notificationService.scheduledNotifications.count == scheduledBefore + 1)
     }
 
     @Test func resumeCourse_disabledReminder_schedulesNothing() async {
@@ -396,7 +396,7 @@ struct CourseManagementServiceTests {
         service.resumeCourse(course)
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.scheduledReminders.isEmpty)
+        #expect(notificationService.scheduledNotifications.isEmpty)
     }
 
     @Test func resumeCourse_pastPause_closesPeriodAtToday() {
@@ -525,9 +525,9 @@ struct CourseManagementServiceTests {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeRunningCourse(in: service)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
-        let scheduledBefore = notificationService.scheduledReminders.count
+        let scheduledBefore = notificationService.scheduledNotifications.count
 
         service.updateCourseDates(course, startDate: day(-5), endDate: day(3))
         await service.waitForPendingReminderTask()
@@ -535,7 +535,7 @@ struct CourseManagementServiceTests {
         #expect(notificationService.removedNotificationsOutsideCourse.count == 1)
         #expect(notificationService.removedNotificationsOutsideCourse.first?.startDate == day(-5))
         #expect(notificationService.removedNotificationsOutsideCourse.first?.endDate == day(3))
-        #expect(notificationService.scheduledReminders.count == scheduledBefore + 1)
+        #expect(notificationService.scheduledNotifications.count == scheduledBefore + 1)
         #expect(notificationService.callLog.suffix(3).first?.hasPrefix("removeNotificationsOutside:") == true)
         #expect(notificationService.callLog.last == "refreshBadges")
     }
@@ -544,15 +544,15 @@ struct CourseManagementServiceTests {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeRunningCourse(in: service)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         service.pauseCourse(course)
         await service.waitForPendingReminderTask()
-        let scheduledBefore = notificationService.scheduledReminders.count
+        let scheduledBefore = notificationService.scheduledNotifications.count
 
         service.updateCourseDates(course, startDate: day(-5), endDate: day(20))
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.scheduledReminders.count == scheduledBefore)
+        #expect(notificationService.scheduledNotifications.count == scheduledBefore)
         #expect(notificationService.removedNotificationsOutsideCourse.count == 1)
     }
 
@@ -592,22 +592,22 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
         let course = makeCompletedCourse(in: service)
 
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.scheduledReminders.isEmpty)
+        #expect(notificationService.scheduledNotifications.isEmpty)
     }
 
     @Test func updateReminderTime_completedCourse_doesNotSchedule() async {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeCompletedCourse(in: service)
-        course.reminders.first?.isEnabled = true
+        course.schedules.first?.isNotificationEnabled = true
 
-        service.updateReminderTime(.now, course: course)
+        service.updateIntakeTime(.now, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(notificationService.scheduledReminders.isEmpty)
+        #expect(notificationService.scheduledNotifications.isEmpty)
     }
 
     @Test func refreshAllReminderSchedules_skipsCompletedCourses() async {
@@ -615,27 +615,27 @@ struct CourseManagementServiceTests {
         let service = makeService(notificationService: notificationService)
         let running = makeRunningCourse(in: service)
         let completed = makeCompletedCourse(in: service)
-        running.reminders.first?.isEnabled = true
-        completed.reminders.first?.isEnabled = true
+        running.schedules.first?.isNotificationEnabled = true
+        completed.schedules.first?.isNotificationEnabled = true
 
-        await service.refreshAllReminderSchedules().value
+        await service.refreshAllNotificationSchedules().value
 
-        #expect(notificationService.scheduledReminders.map(\.course.id) == [running.id])
+        #expect(notificationService.scheduledNotifications.map(\.course.id) == [running.id])
     }
 
     @Test func updateCourseDates_endInPast_removesNotifications_doesNotReschedule() async {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeRunningCourse(in: service)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
-        let scheduledBefore = notificationService.scheduledReminders.count
+        let scheduledBefore = notificationService.scheduledNotifications.count
 
         service.updateCourseDates(course, startDate: day(-10), endDate: day(-1))
         await service.waitForPendingReminderTask()
 
         #expect(course.isCompleted)
-        #expect(notificationService.scheduledReminders.count == scheduledBefore)
+        #expect(notificationService.scheduledNotifications.count == scheduledBefore)
         #expect(notificationService.removedNotificationsOutsideCourse.first?.endDate == day(-1))
         #expect(notificationService.callLog.last == "refreshBadges")
     }
@@ -644,14 +644,14 @@ struct CourseManagementServiceTests {
         let notificationService = MockNotificationService()
         let service = makeService(notificationService: notificationService)
         let course = makeCompletedCourse(in: service)
-        service.setReminderEnabled(true, course: course)
+        service.setNotificationsEnabled(true, course: course)
         await service.waitForPendingReminderTask()
 
         service.updateCourseDates(course, startDate: day(-10), endDate: day(5))
         await service.waitForPendingReminderTask()
 
         #expect(!course.isCompleted)
-        #expect(notificationService.scheduledReminders.count == 1)
+        #expect(notificationService.scheduledNotifications.count == 1)
     }
 
     @Test func pauseCourse_completedCourse_isIgnored() {
@@ -669,13 +669,13 @@ struct CourseManagementServiceTests {
         let source = makeCourse()
         source.startDate = day(-10)
         source.endDate = day(-1)
-        source.reminders = [Reminder(hour: 9, minute: 0, isEnabled: true)]
+        source.schedules = [IntakeSchedule(hour: 9, minute: 0, isNotificationEnabled: true)]
 
         service.importCourse(from: CourseExportDTO(course: source))
         await Task.yield()
         try? await Task.sleep(for: .milliseconds(50))
 
-        #expect(notificationService.scheduledReminders.isEmpty)
+        #expect(notificationService.scheduledNotifications.isEmpty)
     }
 
     @Test func handleTakenActionFromPush_dayOutsideCourse_addsNothing() {
