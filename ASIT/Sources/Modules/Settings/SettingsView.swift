@@ -30,7 +30,12 @@ struct SettingsView: View {
                         NavigationLink {
                             CourseSettingsView(viewModel: viewModel.makeCourseSettingsViewModel(for: course))
                         } label: {
-                            Text(viewModel.medicationName(for: course))
+                            VStack(alignment: .leading, spacing: Constants.courseRowSpacing) {
+                                Text(viewModel.medicationName(for: course))
+                                Text(course.takingYear.title)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -82,6 +87,12 @@ struct SettingsView: View {
                 Text(importError ?? "")
             }
         }
+    }
+}
+
+extension SettingsView {
+    private enum Constants {
+        static let courseRowSpacing: CGFloat = 2
     }
 }
 
