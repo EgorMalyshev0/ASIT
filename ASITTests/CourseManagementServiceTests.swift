@@ -178,7 +178,10 @@ struct CourseManagementServiceTests {
 
         #expect(notificationService.removedNotifications.count == 1)
         #expect(notificationService.removedNotifications.first?.courseId == course.id)
-        #expect(notificationService.removedNotifications.first?.upToDate == yesterday)
+        // Контракт removeNotifications(forCourseId:upTo:) дневной — приём хранит день, а не момент отметки
+        #expect(notificationService.removedNotifications.first.map {
+            Calendar.current.isDate($0.upToDate, inSameDayAs: yesterday)
+        } == true)
         #expect(notificationService.callLog.suffix(2) == ["removeNotifications:\(course.id)", "refreshBadges"])
     }
 
@@ -362,7 +365,9 @@ struct CourseManagementServiceTests {
 
         #expect(course.hasIntake(on: yesterday))
         #expect(!course.hasIntake(on: .now))
-        #expect(notificationService.removedNotifications.last?.upToDate == originalDate)
+        #expect(notificationService.removedNotifications.last.map {
+            calendar.isDate($0.upToDate, inSameDayAs: originalDate)
+        } == true)
     }
 
     // MARK: - resumeCourse
