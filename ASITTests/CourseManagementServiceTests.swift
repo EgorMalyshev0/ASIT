@@ -100,8 +100,7 @@ struct CourseManagementServiceTests {
         service.updateIntakeTime(newTime, course: course)
         await service.waitForPendingReminderTask()
 
-        #expect(course.schedules.first?.hour == 18)
-        #expect(course.schedules.first?.minute == 15)
+        #expect(course.schedules.first?.time == ScheduledTime(hour: 18, minute: 15))
         #expect(notificationService.canceledNotifications.count == 1)
         #expect(notificationService.scheduledNotifications.count == 2, "исходное включение + перепланирование после смены времени")
     }
@@ -204,7 +203,7 @@ struct CourseManagementServiceTests {
 
         #expect(notificationService.scheduledNotifications.count == 1)
         #expect(notificationService.scheduledNotifications.first?.schedule.isNotificationEnabled == true)
-        #expect(notificationService.scheduledNotifications.first?.schedule.hour == 9)
+        #expect(notificationService.scheduledNotifications.first?.schedule.time.hour == 9)
     }
 
     @Test func importCourse_allRemindersDisabled_schedulesNothing() async {

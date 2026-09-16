@@ -99,8 +99,8 @@ final class NotificationService: NotificationServiceProtocol {
             }
 
             var dateComponents = calendar.dateComponents([.year, .month, .day], from: day)
-            dateComponents.hour = schedule.hour
-            dateComponents.minute = schedule.minute
+            dateComponents.hour = schedule.time.hour
+            dateComponents.minute = schedule.time.minute
 
             let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
             let content = makeNotificationContent(courseId: course.id, scheduleId: schedule.id)

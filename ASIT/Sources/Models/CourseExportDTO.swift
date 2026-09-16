@@ -65,10 +65,8 @@ struct CourseDTO: Codable {
 }
 
 struct IntakeDTO: Codable {
-    /// День курса, к которому относится приём
+    /// День курса, за который подтверждён приём
     let date: Date
-    /// Фактический момент приёма; nil — приём отмечен задним числом
-    let takenAt: Date?
     let medicationId: String
     let variantId: String
     let dosage: Dosage
@@ -76,7 +74,6 @@ struct IntakeDTO: Codable {
     
     init(intake: Intake) {
         self.date = intake.date
-        self.takenAt = intake.takenAt
         self.medicationId = intake.medicationId
         self.variantId = intake.variantId
         self.dosage = intake.dosage
@@ -86,7 +83,6 @@ struct IntakeDTO: Codable {
     func toIntake() -> Intake {
         Intake(
             date: date,
-            takenAt: takenAt,
             medicationId: medicationId,
             variantId: variantId,
             dosage: dosage,
@@ -96,18 +92,16 @@ struct IntakeDTO: Codable {
 }
 
 struct IntakeScheduleDTO: Codable {
-    let hour: Int
-    let minute: Int
+    let time: ScheduledTime
     let isNotificationEnabled: Bool
 
     init(schedule: IntakeSchedule) {
-        self.hour = schedule.hour
-        self.minute = schedule.minute
+        self.time = schedule.time
         self.isNotificationEnabled = schedule.isNotificationEnabled
     }
     
     func toSchedule() -> IntakeSchedule {
-        IntakeSchedule(hour: hour, minute: minute, isNotificationEnabled: isNotificationEnabled)
+        IntakeSchedule(time: time, isNotificationEnabled: isNotificationEnabled)
     }
 }
 

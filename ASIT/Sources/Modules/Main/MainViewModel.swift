@@ -74,11 +74,12 @@ final class MainViewModel {
             return
         }
 
-        let intake = Intake.makeTaken(
-            on: date,
+        let intake = Intake(
+            date: date,
             medicationId: course.medicationId,
             variantId: lastIntake.variantId,
-            dosage: lastIntake.dosage
+            dosage: lastIntake.dosage,
+            comment: nil
         )
 
         courseService.addIntake(intake, to: course)

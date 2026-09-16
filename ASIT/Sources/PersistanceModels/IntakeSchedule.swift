@@ -9,40 +9,41 @@ import Foundation
 import SwiftData
 
 /// Расписание приёма курса: время, на которое запланирован приём, и нужно ли о нём напоминать.
-/// Время хранится местное (часы и минуты, без часового пояса) — в поездке приём остаётся в те же
-/// «10:00 по местному», а не сдвигается вместе с поясом.
+/// Когда приёмов в дне станет несколько, каждый будет отдельной строкой расписания
 @Model
 final class IntakeSchedule {
     @Attribute(.unique) var id: UUID
-    /// Час планового приёма (0-23)
-    var hour: Int
-    /// Минута планового приёма (0-59)
-    var minute: Int
+    /// Время планового приёма
+    var time: ScheduledTime
     /// Присылать ли уведомление в это время. Само время приёма от флага не зависит
     var isNotificationEnabled: Bool
 
-    init(hour: Int, minute: Int, isNotificationEnabled: Bool) {
+    init(time: ScheduledTime, isNotificationEnabled: Bool) {
         self.id = UUID()
-        self.hour = hour
-        self.minute = minute
+        self.time = time
         self.isNotificationEnabled = isNotificationEnabled
     }
 
     /// Форматированное время для отображения
     var formattedTime: String {
-        String(format: "%02d:%02d", hour, minute)
+        time.formatted
     }
 
     /// Плановый момент приёма в указанный день
     func intakeTime(on date: Date, calendar: Calendar = .current) -> Date? {
-        calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date)
+        time.date(on: date, calendar: calendar)
     }
 
-    static let defaultHour: Int = 10
-    static let defaultMinute: Int = 0
+    static let defaultTime = ScheduledTime(hour: 10, minute: 0)
 
     /// Создаёт расписание с дефолтным временем и выключенными уведомлениями
     static func makeDefault() -> IntakeSchedule {
-        IntakeSchedule(hour: defaultHour, minute: defaultMinute, isNotificationEnabled: false)
+        IntakeSchedule(time: defaultTime, isNotificationEnabled: false)
+    }
+}
+
+extension IntakeSchedule {
+    convenience init(hour: Int, minute: Int, isNotificationEnabled: Bool) {
+        self.init(time: ScheduledTime(hour: hour, minute: minute), isNotificationEnabled: isNotificationEnabled)
     }
 }

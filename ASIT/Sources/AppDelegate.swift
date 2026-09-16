@@ -154,8 +154,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
         case NotificationActionIdentifier.snoozeOneHour:
             // Откладываем напоминание на час от текущего времени.
-            guard let scheduleIdString = userInfo["scheduleId"] as? String,
-                  let scheduleId = UUID(uuidString: scheduleIdString) else {
+            guard let scheduleId = Self.scheduleId(of: response.notification) else {
                 return
             }
 
@@ -189,6 +188,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return Date(timeIntervalSince1970: timestamp)
         }
         return notification.date
+    }
+
+    /// Слот расписания, для которого уведомление планировалось
+    private static func scheduleId(of notification: UNNotification) -> UUID? {
+        guard let scheduleIdString = notification.request.content.userInfo["scheduleId"] as? String else {
+            return nil
+        }
+        return UUID(uuidString: scheduleIdString)
     }
 }
 

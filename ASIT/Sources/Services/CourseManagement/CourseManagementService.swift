@@ -154,10 +154,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
     func updateIntakeTime(_ newTime: Date, course: Course) {
         let schedule = course.schedules.first ?? IntakeSchedule.makeDefault()
-        let components = Calendar.current.dateComponents([.hour, .minute], from: newTime)
-
-        schedule.hour = components.hour ?? IntakeSchedule.defaultHour
-        schedule.minute = components.minute ?? IntakeSchedule.defaultMinute
+        schedule.time = ScheduledTime(date: newTime)
         course.schedules = [schedule]
         save()
         fetchCourses()
@@ -345,11 +342,12 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             return
         }
 
-        let intake = Intake.makeTaken(
-            on: date,
+        let intake = Intake(
+            date: date,
             medicationId: course.medicationId,
             variantId: lastIntake.variantId,
-            dosage: lastIntake.dosage
+            dosage: lastIntake.dosage,
+            comment: nil
         )
 
         addIntake(intake, to: course)
@@ -361,17 +359,8 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         let course = dto.course.toCourse()
         modelContext.insert(course)
         
-        // Добавляем интейки
-        for intakeDTO in dto.course.intakes {
-            let intake = intakeDTO.toIntake()
-            course.intakes.append(intake)
-        }
-        
-        // Добавляем напоминания
-        for reminderDTO in dto.course.schedules {
-            let schedule = reminderDTO.toSchedule()
-            course.schedules.append(schedule)
-        }
+        course.intakes.append(contentsOf: dto.course.createIntakes())
+        course.schedules.append(contentsOf: dto.course.createSchedules())
 
         course.pauses.append(contentsOf: dto.course.createPauses())
         
@@ -488,12 +477,8 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     
     func importCourse(from dto: CourseExportDTO) {
         let course = dto.course.toCourse()
-        for intakeDTO in dto.course.intakes {
-            course.intakes.append(intakeDTO.toIntake())
-        }
-        for reminderDTO in dto.course.schedules {
-            course.schedules.append(reminderDTO.toSchedule())
-        }
+        course.intakes.append(contentsOf: dto.course.createIntakes())
+        course.schedules.append(contentsOf: dto.course.createSchedules())
         course.pauses.append(contentsOf: dto.course.createPauses())
         courses.append(course)
     }
