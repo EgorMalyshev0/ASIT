@@ -67,7 +67,7 @@ final class NotificationService: NotificationServiceProtocol {
     /// сегодняшний день пропускается не только когда приём уже был, но и когда время напоминания на
     /// сегодня уже прошло — раз оно либо уже сработало, либо больше не может сработать, трогать его
     /// identifier не нужно.
-    func scheduleNotifications(for course: Course, schedule: IntakeSchedule) async {
+    func scheduleNotifications(for course: Course, schedule: IntakeSchedule, courseName: String) async {
         let calendar = Calendar.current
         let now = Date()
         let courseStart = calendar.startOfDay(for: course.startDate)
@@ -103,7 +103,11 @@ final class NotificationService: NotificationServiceProtocol {
             dateComponents.minute = schedule.time.minute
 
             let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
-            let content = makeNotificationContent(courseId: course.id, scheduleId: schedule.id)
+            let content = makeNotificationContent(
+                courseId: course.id,
+                scheduleId: schedule.id,
+                courseName: courseName
+            )
             let request = UNNotificationRequest(
                 identifier: dailyIdentifier(for: schedule.id, date: day),
                 content: content,
@@ -118,6 +122,7 @@ final class NotificationService: NotificationServiceProtocol {
     func scheduleSnoozeNotification(
         courseId: UUID,
         scheduleId: UUID,
+        courseName: String,
         originalDate: Date,
         afterInterval interval: TimeInterval
     ) async {
@@ -125,6 +130,7 @@ final class NotificationService: NotificationServiceProtocol {
         let content = makeNotificationContent(
             courseId: courseId,
             scheduleId: scheduleId,
+            courseName: courseName,
             originalDate: originalDate,
             fireDate: Date().addingTimeInterval(interval)
         )
@@ -219,11 +225,12 @@ final class NotificationService: NotificationServiceProtocol {
     private func makeNotificationContent(
         courseId: UUID,
         scheduleId: UUID,
+        courseName: String,
         originalDate: Date? = nil,
         fireDate: Date? = nil
     ) -> UNNotificationContent {
         let content = UNMutableNotificationContent()
-        content.title = "Напоминание"
+        content.title = courseName
         content.body = "Пора принять лекарство"
         content.sound = .default
         content.categoryIdentifier = NotificationCategoryIdentifier.medicationReminder

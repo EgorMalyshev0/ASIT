@@ -75,6 +75,15 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         course.customName = customName
         save()
         fetchCourses()
+
+        // Имя курса стоит заголовком уведомления — перепланируем окно, чтобы уже запланированные
+        // напоминания приходили под новым именем
+        let enabledReminders = canScheduleReminders(for: course) ? course.schedules.filter(\.isNotificationEnabled) : []
+        enqueueReminderTask { [self] in
+            for schedule in enabledReminders {
+                await notificationService.scheduleNotifications(for: course, schedule: schedule, courseName: courseName(for: course))
+            }
+        }
     }
 
     func deleteCourse(_ course: Course) {
@@ -160,7 +169,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
         enqueueReminderTask { [self] in
             if isNotificationEnabled && canScheduleReminders(for: course) {
-                await notificationService.scheduleNotifications(for: course, schedule: schedule)
+                await notificationService.scheduleNotifications(for: course, schedule: schedule, courseName: courseName(for: course))
             } else {
                 notificationService.cancelNotifications(schedule)
             }
@@ -178,7 +187,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         enqueueReminderTask { [self] in
             notificationService.cancelNotifications(schedule)
             if schedule.isNotificationEnabled && canScheduleReminders(for: course) {
-                await notificationService.scheduleNotifications(for: course, schedule: schedule)
+                await notificationService.scheduleNotifications(for: course, schedule: schedule, courseName: courseName(for: course))
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -231,7 +240,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         let enabledReminders = canScheduleReminders(for: course) ? course.schedules.filter(\.isNotificationEnabled) : []
         enqueueReminderTask { [self] in
             for schedule in enabledReminders {
-                await notificationService.scheduleNotifications(for: course, schedule: schedule)
+                await notificationService.scheduleNotifications(for: course, schedule: schedule, courseName: courseName(for: course))
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -273,7 +282,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             await notificationService.removeNotifications(forCourseId: courseId, outsideOf: start, end)
             // Окно могло сдвинуться: например, старт перенесли на более раннюю дату
             for schedule in enabledReminders {
-                await notificationService.scheduleNotifications(for: course, schedule: schedule)
+                await notificationService.scheduleNotifications(for: course, schedule: schedule, courseName: courseName(for: course))
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -331,7 +340,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
         return enqueueReminderTask { [self] in
             for (course, schedule) in enabledPairs {
-                await notificationService.scheduleNotifications(for: course, schedule: schedule)
+                await notificationService.scheduleNotifications(for: course, schedule: schedule, courseName: courseName(for: course))
             }
             await refreshBadgesForCurrentCourses()
         }
@@ -403,7 +412,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         let enabledReminders = canScheduleReminders(for: course) ? course.schedules.filter(\.isNotificationEnabled) : []
         enqueueReminderTask { [self] in
             for schedule in enabledReminders {
-                await notificationService.scheduleNotifications(for: course, schedule: schedule)
+                await notificationService.scheduleNotifications(for: course, schedule: schedule, courseName: courseName(for: course))
             }
             await refreshBadgesForCurrentCourses()
         }

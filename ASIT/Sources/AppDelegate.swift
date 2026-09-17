@@ -170,6 +170,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             await serviceProvider.notificationService.scheduleSnoozeNotification(
                 courseId: courseId,
                 scheduleId: scheduleId,
+                courseName: serviceProvider.courseService.courseName(for: course),
                 originalDate: intakeDate,
                 afterInterval: 3600 // 1 час
             )

@@ -39,7 +39,7 @@ struct NotificationServiceTests {
         let schedule = IntakeSchedule(hour: 9, minute: 30, isNotificationEnabled: true)
         let course = makeCourse(schedules: [schedule])
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         #expect(!center.addedRequests.isEmpty)
         let identifiers = center.addedRequests.map(\.identifier)
@@ -53,7 +53,7 @@ struct NotificationServiceTests {
         let schedule = IntakeSchedule(hour: 14, minute: 45, isNotificationEnabled: true)
         let course = makeCourse(schedules: [schedule])
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         let trigger = center.addedRequests.first?.trigger as? UNCalendarNotificationTrigger
         // Не repeating: каждый день окна — отдельный one-time триггер, чтобы можно было
@@ -69,7 +69,7 @@ struct NotificationServiceTests {
         let schedule = IntakeSchedule(hour: 10, minute: 0, isNotificationEnabled: true)
         let course = makeCourse(schedules: [schedule])
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         let userInfo = center.addedRequests.first?.content.userInfo
         #expect(userInfo?["courseId"] as? String == course.id.uuidString)
@@ -83,7 +83,7 @@ struct NotificationServiceTests {
         let schedule = IntakeSchedule(hour: 10, minute: 0, isNotificationEnabled: true)
         let course = makeCourse(schedules: [schedule])
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         #expect(center.addedRequests.allSatisfy { $0.content.badge == nil })
     }
@@ -96,7 +96,7 @@ struct NotificationServiceTests {
         let futureStart = calendar.date(byAdding: .day, value: 3, to: .now)!
         let course = makeCourse(startDate: futureStart, schedules: [schedule])
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         let scheduledDates = center.addedRequests
             .compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.dateComponents }
@@ -117,7 +117,7 @@ struct NotificationServiceTests {
         let course = makeCourse(startDate: calendar.date(byAdding: .day, value: -1, to: today)!, schedules: [schedule])
         course.pauses = [CoursePause(startDate: pauseStart, endDate: pauseEnd)]
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         let scheduledDays = center.addedRequests
             .compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.dateComponents }
@@ -137,7 +137,7 @@ struct NotificationServiceTests {
         let course = makeCourse(schedules: [schedule])
         course.pauses = [CoursePause(startDate: Calendar.current.startOfDay(for: .now))]
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         #expect(center.addedRequests.isEmpty)
     }
@@ -152,7 +152,7 @@ struct NotificationServiceTests {
         let course = makeCourse(startDate: calendar.date(byAdding: .day, value: -1, to: today)!, schedules: [schedule])
         course.endDate = endDate
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         let scheduledDays = center.addedRequests
             .compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.dateComponents }
@@ -172,7 +172,7 @@ struct NotificationServiceTests {
         let course = makeCourse(startDate: calendar.date(byAdding: .day, value: -10, to: today)!, schedules: [schedule])
         course.endDate = calendar.date(byAdding: .day, value: -1, to: today)!
 
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
 
         #expect(center.addedRequests.isEmpty)
     }
@@ -186,13 +186,14 @@ struct NotificationServiceTests {
         let course = makeCourse(schedules: [schedule])
 
         // Ежедневные (по одному на день окна) уже запланированы
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
         let dailyIdentifiers = Set(center.addedRequests.map(\.identifier))
 
         // Снус на то же напоминание
         await service.scheduleSnoozeNotification(
             courseId: course.id,
             scheduleId: schedule.id,
+            courseName: "Курс",
             originalDate: .now,
             afterInterval: 3600
         )
@@ -216,6 +217,7 @@ struct NotificationServiceTests {
         await service.scheduleSnoozeNotification(
             courseId: UUID(),
             scheduleId: scheduleId,
+            courseName: "Курс",
             originalDate: .now,
             afterInterval: 3600
         )
@@ -233,6 +235,7 @@ struct NotificationServiceTests {
         await service.scheduleSnoozeNotification(
             courseId: UUID(),
             scheduleId: UUID(),
+            courseName: "Курс",
             originalDate: originalDate,
             afterInterval: 3600
         )
@@ -306,7 +309,7 @@ struct NotificationServiceTests {
         let courseId = UUID()
         let scheduleId = UUID()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
-        await service.scheduleSnoozeNotification(courseId: courseId, scheduleId: scheduleId, originalDate: yesterday, afterInterval: 3600)
+        await service.scheduleSnoozeNotification(courseId: courseId, scheduleId: scheduleId, courseName: "Курс", originalDate: yesterday, afterInterval: 3600)
         center.deliveredRequests = center.addedRequests
 
         await service.removeNotifications(forCourseId: courseId, upTo: .now)
@@ -321,7 +324,7 @@ struct NotificationServiceTests {
         let scheduleId = UUID()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
         let originalDate = Calendar.current.date(bySettingHour: 23, minute: 30, second: 0, of: yesterday)!
-        await service.scheduleSnoozeNotification(courseId: courseId, scheduleId: scheduleId, originalDate: originalDate, afterInterval: 3600)
+        await service.scheduleSnoozeNotification(courseId: courseId, scheduleId: scheduleId, courseName: "Курс", originalDate: originalDate, afterInterval: 3600)
 
         await service.removeNotifications(forCourseId: courseId, upTo: .now)
 
@@ -334,8 +337,8 @@ struct NotificationServiceTests {
         let service = NotificationService(notificationCenter: center)
         let schedule = IntakeSchedule(hour: 23, minute: 59, isNotificationEnabled: true)
         let course = makeCourse(schedules: [schedule])
-        await service.scheduleNotifications(for: course, schedule: schedule)
-        await service.scheduleSnoozeNotification(courseId: course.id, scheduleId: schedule.id, originalDate: .now, afterInterval: 3600)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
+        await service.scheduleSnoozeNotification(courseId: course.id, scheduleId: schedule.id, courseName: "Курс", originalDate: .now, afterInterval: 3600)
         let pendingBefore = center.addedRequests.map(\.identifier)
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
 
@@ -349,7 +352,7 @@ struct NotificationServiceTests {
         let service = NotificationService(notificationCenter: center)
         let schedule = IntakeSchedule(hour: 23, minute: 59, isNotificationEnabled: true)
         let course = makeCourse(startDate: Calendar.current.date(byAdding: .day, value: -1, to: .now)!, schedules: [schedule])
-        await service.scheduleNotifications(for: course, schedule: schedule)
+        await service.scheduleNotifications(for: course, schedule: schedule, courseName: "Курс")
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now)!
 
         await service.removeNotifications(forCourseId: course.id, upTo: .now)
@@ -393,7 +396,7 @@ struct NotificationServiceTests {
         let courseId = UUID()
         let scheduleId = UUID()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
-        await service.scheduleSnoozeNotification(courseId: courseId, scheduleId: scheduleId, originalDate: .now, afterInterval: 3600)
+        await service.scheduleSnoozeNotification(courseId: courseId, scheduleId: scheduleId, courseName: "Курс", originalDate: .now, afterInterval: 3600)
 
         await service.removeNotifications(forCourseId: courseId, outsideOf: yesterday.addingTimeInterval(-86400 * 5), yesterday)
 
@@ -453,8 +456,8 @@ struct NotificationServiceTests {
         let eveningReminder = IntakeSchedule(hour: 20, minute: 0, isNotificationEnabled: true)
         let morning = makeCourse(startDate: day(1), schedules: [morningReminder])
         let evening = makeCourse(startDate: day(1), schedules: [eveningReminder])
-        await service.scheduleNotifications(for: morning, schedule: morningReminder)
-        await service.scheduleNotifications(for: evening, schedule: eveningReminder)
+        await service.scheduleNotifications(for: morning, schedule: morningReminder, courseName: "Курс")
+        await service.scheduleNotifications(for: evening, schedule: eveningReminder, courseName: "Курс")
 
         await service.refreshBadges(for: [morning, evening])
 
@@ -471,7 +474,7 @@ struct NotificationServiceTests {
         let service = NotificationService(notificationCenter: center)
         let schedule = IntakeSchedule(hour: 0, minute: 0, isNotificationEnabled: true)
         let course = makeCourse(startDate: day(-1), schedules: [schedule])
-        await service.scheduleSnoozeNotification(courseId: course.id, scheduleId: schedule.id, originalDate: .now, afterInterval: 3600)
+        await service.scheduleSnoozeNotification(courseId: course.id, scheduleId: schedule.id, courseName: "Курс", originalDate: .now, afterInterval: 3600)
 
         await service.refreshBadges(for: [course])
 

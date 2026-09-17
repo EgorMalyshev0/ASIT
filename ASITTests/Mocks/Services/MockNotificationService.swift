@@ -10,11 +10,11 @@ import UserNotifications
 @testable import ASIT
 
 final class MockNotificationService: NotificationServiceProtocol {
-    private(set) var scheduledNotifications: [(course: Course, schedule: IntakeSchedule)] = []
+    private(set) var scheduledNotifications: [(course: Course, schedule: IntakeSchedule, courseName: String)] = []
     private(set) var canceledNotifications: [IntakeSchedule] = []
     private(set) var removedNotifications: [(courseId: UUID, upToDate: Date)] = []
     private(set) var removedNotificationsOutsideCourse: [(courseId: UUID, startDate: Date, endDate: Date)] = []
-    private(set) var scheduledSnoozes: [(courseId: UUID, scheduleId: UUID, originalDate: Date, interval: TimeInterval)] = []
+    private(set) var scheduledSnoozes: [(courseId: UUID, scheduleId: UUID, courseName: String, originalDate: Date, interval: TimeInterval)] = []
     private(set) var refreshBadgesCallCount = 0
     /// Порядок вызовов вперемешку — для проверки, что асинхронные операции не переупорядочиваются
     private(set) var callLog: [String] = []
@@ -29,18 +29,19 @@ final class MockNotificationService: NotificationServiceProtocol {
         authorizationGranted ? .authorized : .denied
     }
 
-    func scheduleNotifications(for course: Course, schedule: IntakeSchedule) async {
-        scheduledNotifications.append((course, schedule))
+    func scheduleNotifications(for course: Course, schedule: IntakeSchedule, courseName: String) async {
+        scheduledNotifications.append((course, schedule, courseName))
         callLog.append("schedule:\(schedule.id)")
     }
 
     func scheduleSnoozeNotification(
         courseId: UUID,
         scheduleId: UUID,
+        courseName: String,
         originalDate: Date,
         afterInterval interval: TimeInterval
     ) async {
-        scheduledSnoozes.append((courseId, scheduleId, originalDate, interval))
+        scheduledSnoozes.append((courseId, scheduleId, courseName, originalDate, interval))
         callLog.append("scheduleOneTime:\(scheduleId)")
     }
 

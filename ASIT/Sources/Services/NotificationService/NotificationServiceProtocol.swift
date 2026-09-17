@@ -11,10 +11,11 @@ import UserNotifications
 protocol NotificationServiceProtocol: AnyObject {
     func requestAuthorization() async -> Bool
     func checkAuthorizationStatus() async -> UNAuthorizationStatus
-    func scheduleNotifications(for course: Course, schedule: IntakeSchedule) async
+    func scheduleNotifications(for course: Course, schedule: IntakeSchedule, courseName: String) async
     func scheduleSnoozeNotification(
         courseId: UUID,
         scheduleId: UUID,
+        courseName: String,
         originalDate: Date,
         afterInterval interval: TimeInterval
     ) async
