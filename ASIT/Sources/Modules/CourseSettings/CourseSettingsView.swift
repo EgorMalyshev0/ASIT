@@ -31,6 +31,20 @@ struct CourseSettingsView: View {
                 remindersSection
             }
 
+            Section {
+                NavigationLink {
+                    CourseNameView(viewModel: viewModel)
+                } label: {
+                    LabeledContent {
+                        Text(viewModel.state.customName)
+                    } label: {
+                        Label("Название", systemImage: "textformat")
+                    }
+                }
+            } footer: {
+                Text("Вы можете задать курсу своё название")
+            }
+
             courseManagementSection
 
             Section {

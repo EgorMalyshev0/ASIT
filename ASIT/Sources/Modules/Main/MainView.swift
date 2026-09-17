@@ -69,7 +69,7 @@ struct MainView: View {
             AddCourseView(courseService: courseService, medicationService: medicationService)
         }
         .sheet(isPresented: $isSettingsPresented) {
-            SettingsView(courseService: courseService, medicationService: medicationService) {
+            SettingsView(courseService: courseService) {
                 isSettingsPresented = false
                 isAddCoursePresented = true
             }
@@ -111,6 +111,7 @@ struct MainView: View {
                         IntakeCardView(
                             course: course,
                             selectedDate: page.date,
+                            title: viewModel.courseName(for: course),
                             medication: viewModel.medication(for: course),
                             isPaused: course.isPaused(on: page.date),
                             onTap: {

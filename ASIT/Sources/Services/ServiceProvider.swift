@@ -20,8 +20,11 @@ final class ServiceProvider {
         localizationService: LocalizationService = LocalizationService()
     ) {
         self.notificationService = notificationService
-        self.courseService = CourseManagementService(notificationService: notificationService)
         self.medicationService = medicationService
+        self.courseService = CourseManagementService(
+            notificationService: notificationService,
+            medicationService: medicationService
+        )
         self.localizationService = localizationService
     }
 }

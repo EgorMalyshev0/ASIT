@@ -13,17 +13,15 @@ final class SettingsViewModel {
     var courses: [Course] = []
 
     private let courseService: CourseManagementServiceProtocol
-    private let medicationService: MedicationServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
-    init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
+    init(courseService: CourseManagementServiceProtocol) {
         self.courseService = courseService
-        self.medicationService = medicationService
         setupBindings()
     }
 
-    func medicationName(for course: Course) -> String {
-        medicationService.medication(withId: course.medicationId)?.name.ru ?? course.medicationId
+    func courseName(for course: Course) -> String {
+        courseService.courseName(for: course)
     }
     
     func importCourse(from url: URL) throws {
@@ -41,7 +39,7 @@ final class SettingsViewModel {
     }
 
     func makeCourseSettingsViewModel(for course: Course) -> CourseSettingsViewModel {
-        CourseSettingsViewModel(course: course, courseService: courseService, medicationService: medicationService)
+        CourseSettingsViewModel(course: course, courseService: courseService)
     }
 
     private func setupBindings() {

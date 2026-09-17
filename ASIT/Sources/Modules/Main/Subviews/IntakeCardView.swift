@@ -11,6 +11,8 @@ import SwiftUI
 struct IntakeCardView: View {
     let course: Course
     let selectedDate: Date
+    /// Имя курса в заголовке карточки
+    let title: String
     let medication: Medication?
     /// День попадает в паузу курса — приём добавить нельзя
     let isPaused: Bool
@@ -51,7 +53,7 @@ struct IntakeCardView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(medication?.name.ru ?? "Препарат")
+                Text(title)
                     .font(.headline)
                     .foregroundStyle(isDimmed ? .secondary : .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -150,6 +152,7 @@ struct IntakeCardView: View {
     IntakeCardView(
         course: .mock,
         selectedDate: .now,
+        title: "Сталораль Аллерген пыльцы берёзы",
         medication: Medication(
             id: "staloral_birch_pollen",
             name: LocalizedName(ru: "Сталораль Аллерген пыльцы берёзы"),

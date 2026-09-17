@@ -38,6 +38,7 @@ struct CourseExportDTOTests {
             )
         ]
         course.pauses = [CoursePause(startDate: day(-2), endDate: day(-1))]
+        course.customName = "Берёза, второй год"
         return course
     }
 
@@ -65,6 +66,26 @@ struct CourseExportDTOTests {
         #expect(intakes.first?.date == day(-3))
         #expect(intakes.first?.dosage == Dosage(type: .press, amount: 2))
         #expect(intakes.first?.comment == "первый день")
+    }
+
+    @Test func jsonRoundTrip_preservesCustomName() throws {
+        let decoded = try encodedAndDecoded(makeCourse())
+
+        #expect(decoded.course.toCourse().customName == "Берёза, второй год")
+    }
+
+    /// Файлы, снятые до появления кастомного имени, читаются без него
+    @Test func decoding_withoutCustomName_leavesItEmpty() throws {
+        let data = try JSONEncoder().encode(CourseExportDTO(course: makeCourse()))
+        var json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var course = try #require(json["course"] as? [String: Any])
+        course["customName"] = nil
+        json["course"] = course
+        let legacyData = try JSONSerialization.data(withJSONObject: json)
+
+        let decoded = try JSONDecoder().decode(CourseExportDTO.self, from: legacyData)
+
+        #expect(decoded.course.toCourse().customName.isEmpty)
     }
 
     @Test func jsonRoundTrip_preservesCourseAndPauses() throws {

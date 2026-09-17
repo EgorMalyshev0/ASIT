@@ -17,6 +17,9 @@ protocol CourseManagementServiceProtocol: AnyObject {
     func updateCourse(_ course: Course)
     func deleteCourse(_ course: Course)
     func fetchCourses()
+    /// Задаёт имя курса, заданное пользователем. Пустая строка — курс снова показывается
+    /// под названием препарата
+    func updateCustomName(_ customName: String, course: Course)
     /// Курсы, которые идут в указанный день (включая стоящие на паузе)
     func activeCourses(on date: Date) -> [Course]
     /// Курсы, приём по которым ожидается в указанный день — дни паузы не учитываются
@@ -41,6 +44,12 @@ protocol CourseManagementServiceProtocol: AnyObject {
     /// Меняет даты курса: приёмы вне новых дат удаляются, паузы обрезаются по новым границам,
     /// уведомления за дни вне курса убираются, окно уведомлений перепланируется
     func updateCourseDates(_ course: Course, startDate: Date, endDate: Date)
+
+    // MARK: - Naming
+    /// Имя курса для отображения: заданное пользователем, иначе — название препарата
+    func courseName(for course: Course) -> String
+    /// Название препарата курса из справочника
+    func medicationName(for course: Course) -> String
 
     // MARK: - Import/Export
     func importCourse(from dto: CourseExportDTO)

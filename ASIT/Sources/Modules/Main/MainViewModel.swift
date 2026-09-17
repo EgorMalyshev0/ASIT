@@ -69,6 +69,11 @@ final class MainViewModel {
         medicationService.medication(withId: course.medicationId)
     }
 
+    /// Имя курса на карточке: заданное пользователем, иначе — название препарата
+    func courseName(for course: Course) -> String {
+        courseService.courseName(for: course)
+    }
+
     func confirmIntake(for course: Course, on date: Date) {
         guard let lastIntake = course.lastIntake else {
             return

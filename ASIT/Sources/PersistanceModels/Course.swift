@@ -13,6 +13,8 @@ final class Course: Sendable {
     @Attribute(.unique) var id: UUID
     /// ID препарата из JSON-каталога
     var medicationId: String
+    /// Имя курса, заданное пользователем. Пустое — курс показывается под названием препарата
+    var customName: String = ""
     var takingYear: MedicationTakingYear
     var startDate: Date
     var endDate: Date

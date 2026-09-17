@@ -12,7 +12,7 @@ import Foundation
 @MainActor
 struct CourseManagementServiceTests {
     private func makeService(notificationService: MockNotificationService = MockNotificationService()) -> CourseManagementService {
-        CourseManagementService(inMemory: true, notificationService: notificationService)
+        CourseManagementService(inMemory: true, notificationService: notificationService, medicationService: MockMedicationService())
     }
 
     private func makeCourse() -> Course {

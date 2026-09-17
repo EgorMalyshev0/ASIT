@@ -24,6 +24,8 @@ struct CourseExportDTO: Codable {
 
 struct CourseDTO: Codable {
     let medicationId: String
+    /// Имя курса, заданное пользователем. Отсутствует в файлах, снятых до появления этой настройки
+    let customName: String?
     let takingYear: MedicationTakingYear
     let startDate: Date
     let endDate: Date
@@ -33,6 +35,7 @@ struct CourseDTO: Codable {
     
     init(course: Course) {
         self.medicationId = course.medicationId
+        self.customName = course.customName
         self.takingYear = course.takingYear
         self.startDate = course.startDate
         self.endDate = course.endDate
@@ -48,6 +51,7 @@ struct CourseDTO: Codable {
             startDate: startDate,
             endDate: endDate
         )
+        course.customName = customName ?? ""
         return course
     }
     

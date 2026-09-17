@@ -14,20 +14,26 @@ final class CourseSettingsViewModel {
     let course: Course
 
     private let courseService: CourseManagementServiceProtocol
-    private let medicationService: MedicationServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private var intakeTimeUpdateTask: Task<Void, Never>?
 
-    init(course: Course, courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
+    init(course: Course, courseService: CourseManagementServiceProtocol) {
         self.course = course
         self.courseService = courseService
-        self.medicationService = medicationService
         updateState(for: course)
     }
 
     func setNotificationsEnabled(_ isNotificationEnabled: Bool) {
         state.isNotificationEnabled = isNotificationEnabled
         courseService.setNotificationsEnabled(isNotificationEnabled, course: course)
+    }
+
+    /// Сохраняет имя курса, заданное пользователем. Пустое имя (в том числе из одних пробелов)
+    /// возвращает курсу название препарата
+    func saveCustomName(_ newName: String) {
+        let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.customName = trimmedName
+        courseService.updateCustomName(trimmedName, course: course)
     }
 
     func updateIntakeTime(_ newTime: Date) {
@@ -93,14 +99,14 @@ final class CourseSettingsViewModel {
     @MainActor
     private func updateState(for course: Course) {
         let schedule = course.schedules.first ?? IntakeSchedule.makeDefault()
-        let name = medicationService.medication(withId: course.medicationId)?.name.ru ?? course.medicationId
 
         let state = CourseSettingsState(
             isNotificationEnabled: schedule.isNotificationEnabled,
             isPaused: course.isPaused,
             isCompleted: course.isCompleted,
             progress: CourseProgress(course: course),
-            name: name,
+            customName: course.customName,
+            medicationName: courseService.medicationName(for: course),
             intakeTime: schedule.intakeTime(on: Date()) ?? Date()
         )
 
@@ -113,8 +119,15 @@ struct CourseSettingsState {
     var isPaused: Bool
     var isCompleted: Bool
     var progress: CourseProgress
-    let name: String
+    /// Имя, заданное пользователем — пустое, пока курс идёт под названием препарата
+    var customName: String
+    let medicationName: String
     var intakeTime: Date
 
-    static let empty = CourseSettingsState(isNotificationEnabled: false, isPaused: false, isCompleted: false, progress: .empty, name: "", intakeTime: .distantFuture)
+    /// Имя курса на экране: заданное пользователем, иначе — название препарата
+    var name: String {
+        customName.isEmpty ? medicationName : customName
+    }
+
+    static let empty = CourseSettingsState(isNotificationEnabled: false, isPaused: false, isCompleted: false, progress: .empty, customName: "", medicationName: "", intakeTime: .distantFuture)
 }

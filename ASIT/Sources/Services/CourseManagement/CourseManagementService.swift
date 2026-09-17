@@ -19,11 +19,16 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
     let modelContainer: ModelContainer
     private let modelContext: ModelContext
     private let notificationService: NotificationServiceProtocol
+    private let medicationService: MedicationServiceProtocol
 
     /// Последняя запущенная задача планирования/отмены уведомлений
     private var reminderSchedulingTask: Task<Void, Never>?
 
-    init(inMemory: Bool = false, notificationService: NotificationServiceProtocol) {
+    init(
+        inMemory: Bool = false,
+        notificationService: NotificationServiceProtocol,
+        medicationService: MedicationServiceProtocol
+    ) {
         let schema = Schema([Course.self, Intake.self, IntakeSchedule.self, CoursePause.self])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
 
@@ -35,6 +40,7 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
 
         self.modelContext = ModelContext(modelContainer)
         self.notificationService = notificationService
+        self.medicationService = medicationService
         fetchCourses()
         refreshAllNotificationSchedules()
     }
@@ -61,6 +67,16 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         fetchCourses()
     }
     
+    func updateCustomName(_ customName: String, course: Course) {
+        guard course.customName != customName else {
+            return
+        }
+
+        course.customName = customName
+        save()
+        fetchCourses()
+    }
+
     func deleteCourse(_ course: Course) {
         // SwiftData каскадно удалит записи IntakeSchedule из БД, но это не отменяет уже
         // запланированные UNNotificationRequest в очереди iOS — делаем это явно
@@ -354,6 +370,20 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
         addIntake(intake, to: course)
     }
     
+    // MARK: - Naming
+
+    func courseName(for course: Course) -> String {
+        guard course.customName.isEmpty else {
+            return course.customName
+        }
+
+        return medicationName(for: course)
+    }
+
+    func medicationName(for course: Course) -> String {
+        medicationService.medication(withId: course.medicationId)?.name.ru ?? course.medicationId
+    }
+
     // MARK: - Import/Export
     
     func importCourse(from dto: CourseExportDTO) {
@@ -410,8 +440,11 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     var coursesPublisher: AnyPublisher<[Course], Never> {
         $courses.eraseToAnyPublisher()
     }
-    
-    init(withMockData: Bool = false) {
+
+    private let medicationService: MedicationServiceProtocol
+
+    init(withMockData: Bool = false, medicationService: MedicationServiceProtocol = MockMedicationService()) {
+        self.medicationService = medicationService
         if withMockData {
             courses = Self.mockCourses
         }
@@ -422,6 +455,10 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     }
     
     func updateCourse(_ course: Course) {}
+
+    func updateCustomName(_ customName: String, course: Course) {
+        course.customName = customName
+    }
     
     func deleteCourse(_ course: Course) {
         courses.removeAll { $0.id == course.id }
@@ -475,7 +512,15 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
     }
 
     func handleTakenActionFromPush(courseId: UUID, date: Date) {}
-    
+
+    func courseName(for course: Course) -> String {
+        course.customName.isEmpty ? medicationName(for: course) : course.customName
+    }
+
+    func medicationName(for course: Course) -> String {
+        medicationService.medication(withId: course.medicationId)?.name.ru ?? course.medicationId
+    }
+
     func importCourse(from dto: CourseExportDTO) {
         let course = dto.course.toCourse()
         course.intakes.append(contentsOf: dto.course.createIntakes())

@@ -17,8 +17,8 @@ struct SettingsView: View {
 
     let onAddNewCourse: () -> Void
 
-    init(courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol, onAddNewCourse: @escaping () -> Void) {
-        _viewModel = State(initialValue: SettingsViewModel(courseService: courseService, medicationService: medicationService))
+    init(courseService: CourseManagementServiceProtocol, onAddNewCourse: @escaping () -> Void) {
+        _viewModel = State(initialValue: SettingsViewModel(courseService: courseService))
         self.onAddNewCourse = onAddNewCourse
     }
 
@@ -31,7 +31,7 @@ struct SettingsView: View {
                             CourseSettingsView(viewModel: viewModel.makeCourseSettingsViewModel(for: course))
                         } label: {
                             VStack(alignment: .leading, spacing: Constants.courseRowSpacing) {
-                                Text(viewModel.medicationName(for: course))
+                                Text(viewModel.courseName(for: course))
                                 Text(course.takingYear.title)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
@@ -97,5 +97,5 @@ extension SettingsView {
 }
 
 #Preview {
-    SettingsView(courseService: MockCourseManagementService(withMockData: true), medicationService: MockMedicationService(), onAddNewCourse: {})
+    SettingsView(courseService: MockCourseManagementService(withMockData: true), onAddNewCourse: {})
 }

@@ -13,6 +13,8 @@ final class IntakeAddingViewModel {
     let date: Date
     
     private(set) var medication: Medication?
+    /// Имя курса: заданное пользователем, иначе — название препарата
+    private(set) var courseName: String = ""
     private(set) var availableVariants: [Medication.Variant] = []
     
     var selectedVariantId: String? {
@@ -96,6 +98,7 @@ final class IntakeAddingViewModel {
 
     private func loadMedication() {
         medication = medicationService.medication(withId: course.medicationId)
+        courseName = courseService.courseName(for: course)
         availableVariants = medication?.variants ?? []
 
         if let firstVariant = availableVariants.first {

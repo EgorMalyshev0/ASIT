@@ -84,5 +84,5 @@ struct AddCourseView: View {
 }
 
 #Preview {
-    AddCourseView(courseService: CourseManagementService(notificationService: NotificationService()), medicationService: MockMedicationService())
+    AddCourseView(courseService: CourseManagementService(notificationService: NotificationService(), medicationService: MockMedicationService()), medicationService: MockMedicationService())
 }

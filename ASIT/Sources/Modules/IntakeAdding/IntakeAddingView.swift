@@ -19,7 +19,7 @@ struct IntakeAddingView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(viewModel.medication?.name.ru ?? "") {
+                Section(viewModel.courseName) {
                     NavigationLink {
                         SelectionList(
                             title: "Вариант",
