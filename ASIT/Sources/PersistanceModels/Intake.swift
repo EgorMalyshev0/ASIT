@@ -21,14 +21,15 @@ final class Intake {
     var variantId: String
     /// Дозировка
     var dosage: Dosage
-    var comment: String?
+    /// Комментарий к приёму
+    var comment: String
 
     init(
         date: Date,
         medicationId: String,
         variantId: String,
         dosage: Dosage,
-        comment: String?,
+        comment: String,
         calendar: Calendar = .current
     ) {
         self.id = UUID()

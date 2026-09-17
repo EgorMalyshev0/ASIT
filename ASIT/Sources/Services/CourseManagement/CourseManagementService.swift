@@ -342,12 +342,13 @@ final class CourseManagementService: ObservableObject, CourseManagementServicePr
             return
         }
 
+        // Вариант и дозировку берём с прошлого приёма, а комментарий - нет: он относился к тому дню
         let intake = Intake(
             date: date,
             medicationId: course.medicationId,
             variantId: lastIntake.variantId,
             dosage: lastIntake.dosage,
-            comment: nil
+            comment: ""
         )
 
         addIntake(intake, to: course)
@@ -497,7 +498,7 @@ final class MockCourseManagementService: CourseManagementServiceProtocol {
             medicationId: "staloral_birch_pollen",
             variantId: "staloral_birch_pollen_10_ir_ml",
             dosage: Dosage(type: .press, amount: 3),
-            comment: nil
+            comment: ""
         )
         courseWithIntakes.intakes.append(yesterdayIntake)
         

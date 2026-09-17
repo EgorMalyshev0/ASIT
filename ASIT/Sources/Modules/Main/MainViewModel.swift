@@ -74,12 +74,13 @@ final class MainViewModel {
             return
         }
 
+        // Вариант и дозировку берём с прошлого приёма, а комментарий - нет: он относился к тому дню
         let intake = Intake(
             date: date,
             medicationId: course.medicationId,
             variantId: lastIntake.variantId,
             dosage: lastIntake.dosage,
-            comment: nil
+            comment: ""
         )
 
         courseService.addIntake(intake, to: course)

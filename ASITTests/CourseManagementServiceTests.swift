@@ -232,7 +232,7 @@ struct CourseManagementServiceTests {
             medicationId: course.medicationId,
             variantId: "staloral_birch_pollen_10_ir_ml",
             dosage: Dosage(type: .press, amount: 1),
-            comment: nil
+            comment: ""
         )
     }
 

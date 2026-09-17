@@ -10,6 +10,7 @@ import SwiftUI
 struct IntakeAddingView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: IntakeAddingViewModel
+    @FocusState private var isCommentFocused: Bool
 
     init(course: Course, date: Date, courseService: CourseManagementServiceProtocol, medicationService: MedicationServiceProtocol) {
         _viewModel = State(initialValue: IntakeAddingViewModel(course: course, date: date, courseService: courseService, medicationService: medicationService))
@@ -54,15 +55,44 @@ struct IntakeAddingView: View {
                     }
                 }
 
-                Section {
-                    Button(viewModel.isEditing ? "Изменить" : "Добавить") {
-                        viewModel.save()
-                        dismiss()
-                    }
-                    .disabled(!viewModel.canSave)
+                Section("Комментарий") {
+                    HStack(alignment: .top) {
+                        TextField("Опишите своё самочувствие", text: $viewModel.comment, axis: .vertical)
+                            .lineLimit(Constants.commentLineLimit, reservesSpace: true)
+                            .focused($isCommentFocused)
+                            .onChange(of: viewModel.comment) { _, _ in
+                                viewModel.trimCommentToLimit()
+                            }
 
-                    if viewModel.isEditing {
-                        Button("Удалить") {
+                        if !viewModel.comment.isEmpty {
+                            VStack {
+                                Button {
+                                    viewModel.comment = ""
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.borderless)
+                                .tint(.secondary)
+                                .accessibilityLabel("Очистить комментарий")
+
+                                Spacer()
+
+                                if let commentRemainingCount = viewModel.commentRemainingCount {
+                                    Text("\(commentRemainingCount)")
+                                        .font(.caption)
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityLabel("Осталось символов: \(commentRemainingCount)")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if viewModel.isEditing {
+                    Section {
+                        Button("Удалить приём") {
                             viewModel.delete()
                             dismiss()
                         }
@@ -70,6 +100,7 @@ struct IntakeAddingView: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.immediately)
             .navigationTitle(viewModel.isEditing ? "Изменить приём" : "Добавить приём")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -78,9 +109,32 @@ struct IntakeAddingView: View {
                         dismiss()
                     }
                 }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    ToolbarActionButton(role: .confirm) {
+                        viewModel.save()
+                        dismiss()
+                    }
+                    .disabled(!viewModel.canSave)
+                }
+
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+
+                    Button("Готово") {
+                        isCommentFocused = false
+                    }
+                }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
+    }
+}
+
+extension IntakeAddingView {
+    private enum Constants {
+        static let commentLineLimit = 3
+        static let commentAccessorySpacing: CGFloat = 4
     }
 }
 

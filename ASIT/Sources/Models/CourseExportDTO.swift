@@ -70,7 +70,7 @@ struct IntakeDTO: Codable {
     let medicationId: String
     let variantId: String
     let dosage: Dosage
-    let comment: String?
+    let comment: String
     
     init(intake: Intake) {
         self.date = intake.date

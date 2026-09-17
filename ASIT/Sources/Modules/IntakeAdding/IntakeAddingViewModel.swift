@@ -21,6 +21,7 @@ final class IntakeAddingViewModel {
         }
     }
     var selectedDosage: Dosage?
+    var comment: String = ""
     
     private(set) var availableDosages: [Dosage] = []
     
@@ -50,6 +51,23 @@ final class IntakeAddingViewModel {
         prefillFromIntake()
     }
     
+    /// Обрезает комментарий до лимита. Вызывается из onChange, а не из сеттера или didSet:
+    /// там обрезанное значение совпадает с уже сохранённым, изменения состояния нет,
+    /// и TextField оставляет у себя набранный текст
+    func trimCommentToLimit() {
+        guard comment.count > Constants.commentMaxLength else {
+            return
+        }
+
+        comment = String(comment.prefix(Constants.commentMaxLength))
+    }
+    
+    /// Сколько символов комментария осталось до лимита
+    var commentRemainingCount: Int? {
+        let remainingCount = Constants.commentMaxLength - comment.count
+        return remainingCount <= Constants.commentMinRemainingCount ? remainingCount : nil
+    }
+    
     func save() {
         // Проверяем до удаления старого приёма, иначе при отказе в addIntake потеряли бы его
         guard let selectedVariantId, let selectedDosage, course.canAddIntake(on: date) else { return }
@@ -64,7 +82,7 @@ final class IntakeAddingViewModel {
             medicationId: course.medicationId,
             variantId: selectedVariantId,
             dosage: selectedDosage,
-            comment: nil
+            comment: comment.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         
         courseService.addIntake(intake, to: course)
@@ -86,6 +104,9 @@ final class IntakeAddingViewModel {
     }
     
     private func prefillFromIntake() {
+        // Комментарий подставляем только при редактировании: с прошлого приёма он не переносится
+        comment = existingIntake?.comment ?? ""
+        
         // Приоритет: приём на эту дату > последний приём
         let targetIntake = existingIntake ?? course.lastIntake
         guard let targetIntake = targetIntake else { return }
@@ -117,5 +138,12 @@ final class IntakeAddingViewModel {
         }
         
         selectedDosage = availableDosages.first
+    }
+}
+
+extension IntakeAddingViewModel {
+    private enum Constants {
+        static let commentMaxLength = 200
+        static let commentMinRemainingCount = 30
     }
 }
