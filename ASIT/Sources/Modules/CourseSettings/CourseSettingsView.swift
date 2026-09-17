@@ -14,7 +14,6 @@ struct CourseSettingsView: View {
     @State private var areNotificationsEnabled: Bool = true
     @State private var isDeleteAlertPresented: Bool = false
     @State private var isPauseAlertPresented: Bool = false
-    @State private var isDatesEditingPresented: Bool = false
 
     init(viewModel: CourseSettingsViewModel) {
         self.viewModel = viewModel
@@ -24,11 +23,6 @@ struct CourseSettingsView: View {
         List {
             Section {
                 CourseProgressView(progress: viewModel.state.progress)
-            }
-
-            // Завершённому курсу напоминания не нужны
-            if !viewModel.state.isCompleted {
-                remindersSection
             }
 
             Section {
@@ -41,45 +35,22 @@ struct CourseSettingsView: View {
                         Label("Название", systemImage: "textformat")
                     }
                 }
-            } footer: {
-                Text("Вы можете задать курсу своё название")
+
+                NavigationLink {
+                    CourseDatesView(viewModel: viewModel.makeCourseDatesViewModel()) {
+                        viewModel.courseDatesDidChange()
+                    }
+                } label: {
+                    Label("Даты", systemImage: "calendar")
+                }
+            }
+
+            // Завершённому курсу напоминания не нужны
+            if !viewModel.state.isCompleted {
+                remindersSection
             }
 
             courseManagementSection
-
-            Section {
-                ShareLink(
-                    item: CourseFileExport(course: viewModel.course),
-                    preview: SharePreview(
-                        viewModel.state.name,
-                        image: Image(systemName: "doc.fill")
-                    )
-                ) {
-                    Label("Экспортировать курс", systemImage: "square.and.arrow.up")
-                }
-                
-                Button(role: .destructive) {
-                    isDeleteAlertPresented = true
-                } label: {
-                    Label("Удалить курс", systemImage: "trash")
-                }
-                .foregroundStyle(.red)
-                .confirmationDialog(
-                    "Удалить курс?",
-                    isPresented: Binding(
-                        get: { isDeleteAlertPresented },
-                        set: { if !$0 { isDeleteAlertPresented = false } }
-                    ),
-                    titleVisibility: .visible
-                ) {
-                    Button("Удалить", role: .destructive) {
-                        viewModel.deleteCourse()
-                    }
-                    Button("Отмена", role: .cancel, action: {})
-                } message: {
-                    Text("Все данные курса, включая историю приёмов, будут удалены.")
-                }
-            }
 
             #if DEBUG
             Section(header: Text("Debug")) {
@@ -88,7 +59,6 @@ struct CourseSettingsView: View {
             #endif
         }
         .navigationTitle(viewModel.state.name)
-        .animation(.default, value: viewModel.state.isNotificationEnabled)
         .animation(.default, value: viewModel.state.isPaused)
         .animation(.default, value: viewModel.state.isCompleted)
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
@@ -102,29 +72,20 @@ struct CourseSettingsView: View {
         } message: {
             Text(pauseAlertMessage)
         }
-        .sheet(isPresented: $isDatesEditingPresented) {
-            CourseDatesView(viewModel: viewModel.makeCourseDatesViewModel()) {
-                viewModel.courseDatesDidChange()
-            }
-        }
     }
 
     private var remindersSection: some View {
         Section {
+            DatePicker("Время приёма", selection: Binding(get: { viewModel.state.intakeTime },
+                                                          set: { viewModel.updateIntakeTime($0) }),
+                       displayedComponents: .hourAndMinute)
+
             Toggle("Отправлять ежедневное уведомление",
                    isOn: Binding(
                     get: { viewModel.state.isNotificationEnabled },
                     set: { viewModel.setNotificationsEnabled($0) }
                    )
             )
-
-            if viewModel.state.isNotificationEnabled {
-                DatePicker("Время", selection: Binding(get: { viewModel.state.intakeTime },
-                                                       set: { viewModel.updateIntakeTime($0) }),
-                           displayedComponents: .hourAndMinute)
-            }
-        } header: {
-            Text("Напоминания")
         } footer: {
             if viewModel.state.isPaused {
                 Text("Уведомления не отправляются, пока курс на паузе")
@@ -135,27 +96,53 @@ struct CourseSettingsView: View {
 
     private var courseManagementSection: some View {
         Section {
-            Button {
-                isDatesEditingPresented = true
-            } label: {
-                Label("Изменить даты курса", systemImage: "calendar")
-            }
-
             // Паузу можно ставить только незавершённому курсу
             if !viewModel.state.isCompleted {
                 if viewModel.state.isPaused {
                     Button {
                         viewModel.resumeCourse()
                     } label: {
-                        Label("Возобновить курс", systemImage: "play.fill")
+                        Label("Возобновить", systemImage: "play.fill")
                     }
                 } else {
                     Button {
                         isPauseAlertPresented = true
                     } label: {
-                        Label("Приостановить курс", systemImage: "pause.fill")
+                        Label("Приостановить", systemImage: "pause.fill")
                     }
                 }
+            }
+
+            ShareLink(
+                item: CourseFileExport(course: viewModel.course),
+                preview: SharePreview(
+                    viewModel.state.name,
+                    image: Image(systemName: "doc.fill")
+                )
+            ) {
+                Label("Экспортировать", systemImage: "square.and.arrow.up")
+            }
+
+            Button(role: .destructive) {
+                isDeleteAlertPresented = true
+            } label: {
+                Label("Удалить", systemImage: "trash")
+            }
+            .foregroundStyle(.red)
+            .confirmationDialog(
+                "Удалить курс?",
+                isPresented: Binding(
+                    get: { isDeleteAlertPresented },
+                    set: { if !$0 { isDeleteAlertPresented = false } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Удалить", role: .destructive) {
+                    viewModel.deleteCourse()
+                }
+                Button("Отмена", role: .cancel, action: {})
+            } message: {
+                Text("Все данные курса, включая историю приёмов, будут удалены.")
             }
         }
     }

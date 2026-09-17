@@ -20,57 +20,50 @@ struct CourseDatesView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    DatePicker(
-                        "Дата начала курса",
-                        selection: $viewModel.startDate,
-                        in: viewModel.minStartDate...viewModel.maxStartDate,
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact)
+        Form {
+            Section {
+                DatePicker(
+                    "Дата начала курса",
+                    selection: $viewModel.startDate,
+                    in: viewModel.minStartDate...viewModel.maxStartDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.compact)
 
-                    DatePicker(
-                        "Дата окончания курса",
-                        selection: $viewModel.endDate,
-                        in: viewModel.startDate...viewModel.maxEndDate,
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact)
-                } footer: {
+                DatePicker(
+                    "Дата окончания курса",
+                    selection: $viewModel.endDate,
+                    in: viewModel.startDate...viewModel.maxEndDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.compact)
+            } footer: {
+                if viewModel.removedIntakesCount > 0 {
+                    Text("Приёмы вне новых дат курса будут удалены")
+                }
+            }
+        }
+        .navigationTitle("Даты курса")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                ToolbarActionButton(role: .confirm) {
                     if viewModel.removedIntakesCount > 0 {
-                        Text("Приёмы вне новых дат курса будут удалены")
+                        isConfirmationPresented = true
+                    } else {
+                        save()
                     }
                 }
+                .disabled(!viewModel.hasChanges)
             }
-            .navigationTitle("Даты курса")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    ToolbarActionButton(role: .cancel) {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    ToolbarActionButton(role: .confirm) {
-                        if viewModel.removedIntakesCount > 0 {
-                            isConfirmationPresented = true
-                        } else {
-                            save()
-                        }
-                    }
-                    .disabled(!viewModel.hasChanges)
-                }
+        }
+        .alert("Изменить даты курса?", isPresented: $isConfirmationPresented) {
+            Button("Изменить", role: .destructive) {
+                save()
             }
-            .alert("Изменить даты курса?", isPresented: $isConfirmationPresented) {
-                Button("Изменить", role: .destructive) {
-                    save()
-                }
-                Button("Отмена", role: .cancel, action: {})
-            } message: {
-                Text("Будут удалены приёмы вне новых дат курса. Это действие нельзя отменить.")
-            }
+            Button("Отмена", role: .cancel, action: {})
+        } message: {
+            Text("Будут удалены приёмы вне новых дат курса. Это действие нельзя отменить.")
         }
     }
 

@@ -45,7 +45,7 @@ struct MainView: View {
                             Image(systemName: "calendar")
                         }
                     }
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             isSettingsPresented = true
                         } label: {
